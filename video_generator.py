@@ -6,7 +6,7 @@ import gzip
 import logging
 import datetime
 
-def decompress_pgm_files(folder_path, decompressed_folder_path):
+def _decompress_pgm_files(folder_path, decompressed_folder_path):
         logging.info('decompress start, hour = '+folder_path[-4:])
         '''
         folder_path: str, should be ut** folder path
@@ -21,7 +21,13 @@ def decompress_pgm_files(folder_path, decompressed_folder_path):
         frame_num = img.shape[2]
 
         for frame in range(frame_num):
-            temp_file_name = folder_path[-4:]+str(frame)+'.pgm'
+            # '2020-01-04 00:02:06.053611 UTC'
+            strtime = meta[frame]['Image request start']
+            # 'datetime.datetime(2020, 1, 4, 0, 2, 6, 53611)'
+            dt = datetime.datetime.strptime(strtime, "%Y-%m-%d %H:%M:%S.%f %Z")
+            # '20200104000206'
+            dt = dt.strftime('%Y%m%d%H%M%S')
+            temp_file_name = meta[frame]['Site unique ID']+dt+'.pgm'
             temp_path = os.path.join(decompressed_folder_path, temp_file_name)
             cv2.imwrite(temp_path, img[:, :, frame])
         
@@ -53,13 +59,13 @@ def list_and_decompress_pgm_files(outer_folder_path):
             hours.append(folder_path)
 
     for hour in hours:
-        decompress_pgm_files(hour, decompressed_folder_path)
+        _decompress_pgm_files(hour, decompressed_folder_path)
 
     logging.info('list_and_decompress done')
     return decompressed_folder_path
 
 
-def pgm_images_to_mp4(decompressed_folder_path, output_video_path):
+def pgm_images_to_mp4(decompressed_folder_path, video_folder_path):
     logging.info('video convertion start')
     # Initialize a list to store the paths to the pgm files
     pgm_file_paths = []
@@ -72,8 +78,9 @@ def pgm_images_to_mp4(decompressed_folder_path, output_video_path):
     pgm_file_paths.sort()
 
     # Initialize the video writer
+    video_path = os.path.join(video_folder_path, file_name[:12]+'video.mp4')
     video_writer = cv2.VideoWriter(
-        output_video_path, cv2.VideoWriter_fourcc('m', 'p', '4', 'v'), 30, (256, 256))
+        video_path, cv2.VideoWriter_fourcc('m', 'p', '4', 'v'), 30, (256, 256))
 
     # Iterate over the pgm files and write them to the video file
     for image_path in pgm_file_paths:
@@ -98,7 +105,7 @@ if __name__ == '__main__':
     child_folder_path = '/Volumes/Garrys_T7/rtroyer-useful-functions/image/rank/tmp/2020-01-04/ut00'
     outer_folder_path = '/Volumes/Garrys_T7/rtroyer-useful-functions/image/rank/tmp/2020-01-04'
 
-    output_video_path = '//Volumes/Garrys_T7/rtroyer-useful-functions/image/rank/tmp/2020-01-04/video.mp4'
+    
 
     logging.basicConfig(filename='video_generator.log',
                         # encoding='utf-8',
@@ -121,4 +128,4 @@ if __name__ == '__main__':
     decompressed_folder_path = list_and_decompress_pgm_files(outer_folder_path)
 
     # decompressed_folder_path = list_and_decompress_pgm_files(outer_folder_path)
-    pgm_images_to_mp4(decompressed_folder_path, output_video_path)
+    pgm_images_to_mp4(decompressed_folder_path, outer_folder_path)
