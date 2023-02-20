@@ -5,35 +5,70 @@ import os
 import gzip
 import logging
 import datetime
+import numpy
 
 def _decompress_pgm_files(folder_path, decompressed_folder_path):
-        logging.info('decompress start, hour = '+folder_path[-4:])
-        '''
-        folder_path: str, should be ut** folder path
-        '''
+    logging.info('decompress start, hour = '+folder_path[-4:])
+    '''
+    folder_path: str, should be ut** folder path
+    '''
 
-        # get all compressed images absolute path in the folder, exclude hidden files and different shape files
-        file_names = os.listdir(folder_path)
-        file_names = [folder_path+'/'+f for f in file_names if 'full' in f and not f.startswith('.')]
+    # get all compressed images absolute path in the folder, exclude hidden files and different shape files
+    file_names = os.listdir(folder_path)
+    file_names = [folder_path+'/'+f for f in file_names if 'full' in f and not f.startswith('.')]
 
-        # read the images using themis_imager_readfile - input is the list of absolute paths to compressed images
-        img, meta, problematic_files = themis_imager_readfile.read(file_names)
-        frame_num = img.shape[2]
+    # read the images using themis_imager_readfile - input is the list of absolute paths to compressed images
+    img, meta, problematic_files = themis_imager_readfile.read(file_names)
+    frame_num = img.shape[2]
 
-        for frame in range(frame_num):
-            # '2020-01-04 00:02:06.053611 UTC'
-            strtime = meta[frame]['Image request start']
-            # 'datetime.datetime(2020, 1, 4, 0, 2, 6, 53611)'
-            dt = datetime.datetime.strptime(strtime, "%Y-%m-%d %H:%M:%S.%f %Z")
-            # '20200104000206'
-            dt = dt.strftime('%Y%m%d%H%M%S')
-            temp_file_name = meta[frame]['Site unique ID']+dt+'.pgm'
-            temp_path = os.path.join(decompressed_folder_path, temp_file_name)
-            cv2.imwrite(temp_path, img[:, :, frame])
-        
-        # logging.info('listdir = '+str(os.listdir(folder_path)))
+    for frame in range(frame_num):
+        # '2020-01-04 00:02:06.053611 UTC'
+        strtime = meta[frame]['Image request start']
+        # 'datetime.datetime(2020, 1, 4, 0, 2, 6, 53611)'
+        dt = datetime.datetime.strptime(strtime, "%Y-%m-%d %H:%M:%S.%f %Z")
+        # '20200104000206'
+        dt = dt.strftime('%Y%m%d%H%M%S')
+        temp_file_name = meta[frame]['Site unique ID']+dt+'.pgm'
+        temp_path = os.path.join(decompressed_folder_path, temp_file_name)
+        cv2.imwrite(temp_path, img[:, :, frame])
+    
+    # logging.info('listdir = '+str(os.listdir(folder_path)))
 
-        logging.info(folder_path[-4:]+ ' decompress done')
+    logging.info(folder_path[-4:]+ ' decompress done')
+    return 
+
+
+def _bytescale(img, cmin=None, cmax=None, high=65535, low=0):
+
+    if high > 65535:
+        raise ValueError("`high` should be less than or equal to 65535.")
+    if low < 0:
+        raise ValueError("`low` should be greater than or equal to 0.")
+    if high < low:
+        raise ValueError(
+            "`high` should be greater than or equal to `low`.")
+
+    if cmin is None:
+        cmin = img.min()
+    if cmax is None:
+        cmax = img.max()
+
+    cscale = cmax - cmin
+    if cscale < 0:
+        raise ValueError("`cmax` should be larger than `cmin`.")
+    elif cscale == 0:
+        cscale = 1
+
+    scale = float(high - low) / cscale
+    bytedata = (img - cmin) * scale + low
+    im_scaled =  (bytedata.clip(low, high) + 0.5).astype(numpy.uint16)
+    image = (im_scaled // 256)
+    image = numpy.uint8(image)
+    return image
+
+def _eqhist(img):
+    img = cv2.equalizeHist(img) # equalize histogram
+    return img
 
 
 def list_and_decompress_pgm_files(outer_folder_path):
@@ -65,7 +100,7 @@ def list_and_decompress_pgm_files(outer_folder_path):
     return decompressed_folder_path
 
 
-def pgm_images_to_mp4(decompressed_folder_path, video_folder_path):
+def pgm_images_to_mp4(decompressed_folder_path, video_folder_path, file_suffix='video.mp4', method='None'):
     logging.info('video convertion start')
     # Initialize a list to store the paths to the pgm files
     pgm_file_paths = []
@@ -78,21 +113,18 @@ def pgm_images_to_mp4(decompressed_folder_path, video_folder_path):
     pgm_file_paths.sort()
 
     # Initialize the video writer
-    video_path = os.path.join(video_folder_path, file_name[:12]+'video.mp4')
+    video_path = os.path.join(video_folder_path, file_name[:12]+file_suffix)
     video_writer = cv2.VideoWriter(
-        video_path, cv2.VideoWriter_fourcc('m', 'p', '4', 'v'), 30, (256, 256))
+        video_path, cv2.VideoWriter_fourcc('m', 'p', '4', 'v'), 30, (256, 256), 0)
 
     # Iterate over the pgm files and write them to the video file
     for image_path in pgm_file_paths:
-        # file_name = image_path[-36:]
-        # date_text = file_name[:8]
-        # frame_text = file_name[9:13]
         frame_number = image_path.split('/')[-1]
-        image = cv2.imread(image_path)  # , cv2.IMREAD_GRAYSCALE
-        # cv2.putText(
-        #     image, date_text+' ' +
-        #     frame_text, (10, 50), cv2.FONT_HERSHEY_SIMPLEX,
-        #     0.5, (209, 80, 0, 255), 1)
+        image = cv2.imread(image_path, 0)  # , cv2.IMREAD_GRAYSCALE
+        if method == 'bytescale':
+            image = _bytescale(image)     
+        if method == 'eqhist':
+            image = _eqhist(image)
         cv2.putText(image, frame_number,(10, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (209, 80, 0, 255), 1)
         video_writer.write(image)
 
@@ -104,6 +136,7 @@ def pgm_images_to_mp4(decompressed_folder_path, video_folder_path):
 if __name__ == '__main__':
     child_folder_path = '/Volumes/Garrys_T7/rtroyer-useful-functions/image/rank/tmp/2020-01-04/ut00'
     outer_folder_path = '/Volumes/Garrys_T7/rtroyer-useful-functions/image/rank/tmp/2020-01-04'
+    video_folder_path = '/Volumes/Garrys_T7/video_folder'
 
     
 
@@ -128,4 +161,4 @@ if __name__ == '__main__':
     decompressed_folder_path = list_and_decompress_pgm_files(outer_folder_path)
 
     # decompressed_folder_path = list_and_decompress_pgm_files(outer_folder_path)
-    pgm_images_to_mp4(decompressed_folder_path, outer_folder_path)
+    pgm_images_to_mp4(decompressed_folder_path, video_folder_path, file_suffix='eqhist.mp4', method='eqhist')
