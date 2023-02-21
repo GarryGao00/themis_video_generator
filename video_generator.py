@@ -38,7 +38,8 @@ def _decompress_pgm_files(folder_path, decompressed_folder_path):
     return 
 
 
-def _bytescale(img, cmin=None, cmax=None, high=65535, low=0):
+def _bytescale(image_path, cmin=None, cmax=None, high=65535, low=0):
+    image = cv2.imread(image_path, 0)
 
     if high > 65535:
         raise ValueError("`high` should be less than or equal to 65535.")
@@ -49,9 +50,9 @@ def _bytescale(img, cmin=None, cmax=None, high=65535, low=0):
             "`high` should be greater than or equal to `low`.")
 
     if cmin is None:
-        cmin = img.min()
+        cmin = image.min()
     if cmax is None:
-        cmax = img.max()
+        cmax = image.max()
 
     cscale = cmax - cmin
     if cscale < 0:
@@ -60,15 +61,29 @@ def _bytescale(img, cmin=None, cmax=None, high=65535, low=0):
         cscale = 1
 
     scale = float(high - low) / cscale
-    bytedata = (img - cmin) * scale + low
+    bytedata = (image - cmin) * scale + low
     im_scaled =  (bytedata.clip(low, high) + 0.5).astype(numpy.uint16)
     image = (im_scaled // 256)
     image = numpy.uint8(image)
     return image
 
-def _eqhist(img):
-    img = cv2.equalizeHist(img) # equalize histogram
-    return img
+def _eqhist(image_path):
+    image = cv2.imread(image_path, 0)
+    image = cv2.equalizeHist(image)  # equalize histogram
+    image = numpy.uint8(image)
+    return image
+
+def _relu(image_path, low = 0, pivot=0.02, ratio=1.7):
+    image = cv2.imread(image_path, 0)
+
+    # process the data in relu
+    def _relu_help(data, pivot=pivot, low=low, ratio=ratio):
+        return numpy.maximum(data+low, ratio*(data-pivot)+low)
+
+    image = _relu_help(image)
+    image = image.clip(low, 255).astype(numpy.uint8)
+
+    return image
 
 
 def list_and_decompress_pgm_files(outer_folder_path):
@@ -109,22 +124,23 @@ def pgm_images_to_mp4(decompressed_folder_path, video_folder_path, file_suffix='
             pgm_file_paths.append(os.path.join(
                 decompressed_folder_path, file_name))
 
-    # Sort the list of pgm files -- needed as we decompressed using multithreading
-    pgm_file_paths.sort()
-
     # Initialize the video writer
     video_path = os.path.join(video_folder_path, file_name[:12]+file_suffix)
     video_writer = cv2.VideoWriter(
         video_path, cv2.VideoWriter_fourcc('m', 'p', '4', 'v'), 30, (256, 256), 0)
 
+    # Sort the list of pgm files -- needed as we decompressed using multithreading
+    pgm_file_paths.sort()
+        
     # Iterate over the pgm files and write them to the video file
     for image_path in pgm_file_paths:
         frame_number = image_path.split('/')[-1]
-        image = cv2.imread(image_path, 0)  # , cv2.IMREAD_GRAYSCALE
         if method == 'bytescale':
-            image = _bytescale(image)     
+            image = _bytescale(image_path)
         if method == 'eqhist':
-            image = _eqhist(image)
+            image = _eqhist(image_path)
+        if method == 'relu':
+            image = _relu(image_path)
         cv2.putText(image, frame_number,(10, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (209, 80, 0, 255), 1)
         video_writer.write(image)
 
@@ -134,11 +150,8 @@ def pgm_images_to_mp4(decompressed_folder_path, video_folder_path, file_suffix='
     logging.info('video convertion end')
 
 if __name__ == '__main__':
-    child_folder_path = '/Volumes/Garrys_T7/rtroyer-useful-functions/image/rank/tmp/2020-01-04/ut00'
     outer_folder_path = '/Volumes/Garrys_T7/rtroyer-useful-functions/image/rank/tmp/2020-01-04'
     video_folder_path = '/Volumes/Garrys_T7/video_folder'
-
-    
 
     logging.basicConfig(filename='video_generator.log',
                         # encoding='utf-8',
@@ -155,10 +168,10 @@ if __name__ == '__main__':
     # img, meta, problematic_files = themis_imager_readfile.read(test_img)
     # print("Number of images: %d" % (img.shape[2]))
 
-    # decompress_pgm_files tested - working
+    # decompress_pgm_files tested - working 
     # decompress_pgm_files(child_folder_path, decompressed_folder_path)
 
     decompressed_folder_path = list_and_decompress_pgm_files(outer_folder_path)
 
     # decompressed_folder_path = list_and_decompress_pgm_files(outer_folder_path)
-    pgm_images_to_mp4(decompressed_folder_path, video_folder_path, file_suffix='eqhist.mp4', method='eqhist')
+    pgm_images_to_mp4(decompressed_folder_path, video_folder_path, file_suffix='bytescale.mp4', method='bytescale')
