@@ -2,16 +2,13 @@ import cv2
 import themis_imager_readfile
 import multiprocessing
 import os
-import gzip
 import logging
 import datetime
 import numpy
 
 def _decompress_pgm_files(folder_path, decompressed_folder_path):
     logging.info('decompress start, hour = '+folder_path[-4:])
-    '''
-    folder_path: str, should be ut** folder path
-    '''
+    # folder_path: str, should be ut** folder path
 
     # get all compressed images absolute path in the folder, exclude hidden files and different shape files
     file_names = os.listdir(folder_path)
@@ -31,8 +28,6 @@ def _decompress_pgm_files(folder_path, decompressed_folder_path):
         temp_file_name = meta[frame]['Site unique ID']+dt+'.pgm'
         temp_path = os.path.join(decompressed_folder_path, temp_file_name)
         cv2.imwrite(temp_path, img[:, :, frame])
-    
-    # logging.info('listdir = '+str(os.listdir(folder_path)))
 
     logging.info(folder_path[-4:]+ ' decompress done')
     return 
@@ -67,19 +62,28 @@ def _bytescale(image_path, cmin=None, cmax=None, high=65535, low=0):
     image = numpy.uint8(image)
     return image
 
+
+# equalize histogram
 def _eqhist(image_path):
     image = cv2.imread(image_path, 0)
     image = cv2.equalizeHist(image)  # equalize histogram
     image = numpy.uint8(image)
     return image
 
-def _relu(image_path, low = 0, pivot=0.02, ratio=1.7):
-    image = cv2.imread(image_path, 0)
 
+# contrast limited adaptive histogram equalization
+def _clahe(image_path, clahe):
+    image = cv2.imread(image_path, 0)
+    image = clahe.apply(image)
+    return image
+
+
+def _relu(image_path, low = 0, pivot=0.02, ratio=1.7):
     # process the data in relu
     def _relu_help(data, pivot=pivot, low=low, ratio=ratio):
         return numpy.maximum(data+low, ratio*(data-pivot)+low)
 
+    image = cv2.imread(image_path, 0)
     image = _relu_help(image)
     image = image.clip(low, 255).astype(numpy.uint8)
 
@@ -88,6 +92,7 @@ def _relu(image_path, low = 0, pivot=0.02, ratio=1.7):
 
 def list_and_decompress_pgm_files(outer_folder_path):
     logging.info('list_and_decompress start')
+    tic = datetime.datetime.now()
 
     # Create 'decompressed' folder
     decompressed_folder_path = os.path.join(outer_folder_path, 'decompressed')
@@ -111,12 +116,15 @@ def list_and_decompress_pgm_files(outer_folder_path):
     for hour in hours:
         _decompress_pgm_files(hour, decompressed_folder_path)
 
-    logging.info('list_and_decompress done')
+    toc = datetime.datetime.now()
+    logging.info('list_and_decompress done in ' + str((toc-tic).total_seconds()) + ' seconds')
     return decompressed_folder_path
 
 
 def pgm_images_to_mp4(decompressed_folder_path, video_folder_path, file_suffix='video.mp4', method='None'):
     logging.info('video convertion start')
+    tic = datetime.datetime.now()
+
     # Initialize a list to store the paths to the pgm files
     pgm_file_paths = []
     for file_name in os.listdir(decompressed_folder_path):
@@ -137,17 +145,25 @@ def pgm_images_to_mp4(decompressed_folder_path, video_folder_path, file_suffix='
         frame_number = image_path.split('/')[-1]
         if method == 'bytescale':
             image = _bytescale(image_path)
-        if method == 'eqhist':
+        elif method == 'eqhist':
             image = _eqhist(image_path)
-        if method == 'relu':
+        elif method == 'relu':
             image = _relu(image_path)
+        elif method == 'clahe':
+            clahe = cv2.createCLAHE(clipLimit=30)
+            image = _clahe(image_path, clahe)
+
         cv2.putText(image, frame_number,(10, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (209, 80, 0, 255), 1)
         video_writer.write(image)
 
-    # logging.info(file_name + "//" + date_text + frame_text)
     # Release the video writer
     video_writer.release()
-    logging.info('video convertion end')
+
+    toc = datetime.datetime.now()
+    logging.info('video convertion end in ' +
+                 str(round((toc-tic).total_seconds(), 2))+' seconds')
+
+
 
 if __name__ == '__main__':
     outer_folder_path = '/Volumes/Garrys_T7/rtroyer-useful-functions/image/rank/tmp/2020-01-04'
@@ -162,16 +178,5 @@ if __name__ == '__main__':
     logging.info('MiniVideoGenerator test code start ' +
                  datetime.datetime.now().strftime("%H:%M:%S"))
 
-    decompressed_folder_path = '/Volumes/Garrys_T7/themis_video_generator/decompressed'
-
-    # test_img = '/Volumes/Garrys_T7/rtroyer-useful-functions/image/rank/tmp/2020-01-04/ut00/20200104_0002_rank_themis12_full.pgm.gz'
-    # img, meta, problematic_files = themis_imager_readfile.read(test_img)
-    # print("Number of images: %d" % (img.shape[2]))
-
-    # decompress_pgm_files tested - working 
-    # decompress_pgm_files(child_folder_path, decompressed_folder_path)
-
     decompressed_folder_path = list_and_decompress_pgm_files(outer_folder_path)
-
-    # decompressed_folder_path = list_and_decompress_pgm_files(outer_folder_path)
-    pgm_images_to_mp4(decompressed_folder_path, video_folder_path, file_suffix='bytescale.mp4', method='bytescale')
+    pgm_images_to_mp4(decompressed_folder_path, video_folder_path, file_suffix='clahe3.mp4', method='clahe')
