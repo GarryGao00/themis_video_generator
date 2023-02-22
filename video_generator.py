@@ -214,24 +214,6 @@ def pgm_images_to_mp4(decompressed_folder_path, video_folder_path='./videos', fi
                      cv2.FONT_HERSHEY_SIMPLEX, 0.5, (209, 80, 0, 255), 1)
         video_writer.write(image)
         frame_number = frame_number + 1
-        
-    # # Iterate over the pgm files and write them to the video file
-    # for image_path in pgm_file_paths:
-    #     frame_number = image_path.split('/')[-1]
-    #     if method == 'bytescale':
-    #         image = _bytescale(image_path)
-    #     elif method == 'eqhist':
-    #         image = _eqhist(image_path)
-    #     elif method == 'relu':
-    #         image = _relu(image_path)
-    #     elif method == 'clahe':
-    #         clahe = cv2.createCLAHE(clipLimit=30)
-    #         image = _clahe(image_path, clahe)
-    #     else:
-    #         image = cv2.imread(image_path, 0)
-
-    #     cv2.putText(image, frame_number,(10, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (209, 80, 0, 255), 1)
-    #     video_writer.write(image)
 
     # Release the video writer
     video_writer.release()
