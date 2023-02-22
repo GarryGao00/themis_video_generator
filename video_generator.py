@@ -5,6 +5,7 @@ import os
 import logging
 import datetime
 import numpy
+import subprocess
 
 def _decompress_pgm_files(folder_path, decompressed_folder_path):
     logging.info('decompress start, hour = '+folder_path[-4:])
@@ -32,7 +33,7 @@ def _decompress_pgm_files(folder_path, decompressed_folder_path):
     logging.info(folder_path[-4:]+ ' decompress done')
     return 
 
-
+# bytescale function from UCalgary
 def _bytescale(image_path, cmin=None, cmax=None, high=65535, low=0):
     image = cv2.imread(image_path, 0)
 
@@ -62,7 +63,6 @@ def _bytescale(image_path, cmin=None, cmax=None, high=65535, low=0):
     image = numpy.uint8(image)
     return image
 
-
 # equalize histogram
 def _eqhist(image_path):
     image = cv2.imread(image_path, 0)
@@ -70,13 +70,11 @@ def _eqhist(image_path):
     image = numpy.uint8(image)
     return image
 
-
 # contrast limited adaptive histogram equalization
 def _clahe(image_path, clahe):
     image = cv2.imread(image_path, 0)
     image = clahe.apply(image)
     return image
-
 
 def _relu(image_path, low = 0, pivot=0.02, ratio=1.7):
     # process the data in relu
@@ -89,26 +87,73 @@ def _relu(image_path, low = 0, pivot=0.02, ratio=1.7):
 
     return image
 
+# download images from UCalgary. 
+# Date: datetime object; force: 0-check if downloaded first, 1-delete existing date and redownload
+def download_themis_images(date, asi, folder_path='./images',force=0):
+    logging.info('Downloading {} {}.'.format(asi, date.date()))
 
-def list_and_decompress_pgm_files(outer_folder_path):
+    # check and create destination folder if not exists
+    date_string = date.strftime('%Y-%m-%d')
+    full_path = folder_path+'/'+asi+'/'+date_string
+    if not os.path.exists(full_path):
+        os.makedirs(full_path)
+    # if path exists and not forcing, return path
+    elif force == 0:
+        logging.info('Already downloaded at {}.'.format(full_path))
+        return full_path
+    # if path exists and forcing, delete everything in the folder
+    elif force == 1:
+        for filename in os.listdir(full_path):
+            file_path = os.path.join(full_path, filename)
+            try:
+                if os.path.isfile(file_path) or os.path.islink(file_path):
+                    os.unlink(file_path)
+            except Exception as e:
+                print(f"Failed to delete {file_path}. Reason: {e}")
+        # Delete all subdirectories in the directory
+        for dirpath, dirnames, filenames in os.walk(full_path, topdown=False):
+            for dirname in dirnames:
+                os.rmdir(os.path.join(dirpath, dirname))
+
+    # dir_url - destination directory url
+    date_string_url = date.strftime('%Y/%m/%d/')
+    themis_url = 'data.phys.ucalgary.ca/data/sort_by_project/THEMIS/asi/stream0/'
+    dir_url = themis_url + date_string_url + asi + '*/'
+
+    logging.info('Downloading images from {}...'.format(dir_url))
+    try:
+        subprocess.run(['rsync', '-vzrt', '--size-only', '--ignore-existing', 'rsync://' + dir_url,
+                        full_path], stdout=subprocess.DEVNULL)
+        logging.info('Successfully downloaded at {}.'.format(folder_path))
+    except Exception as e:
+        logging.critical('Unable to download images:{}.'.format(dir_url))
+        logging.critical('Exception: {}'.format(e))
+        raise
+
+    return full_path
+
+
+def list_and_decompress_pgm_files(img_folder_path):
     logging.info('list_and_decompress start')
     tic = datetime.datetime.now()
 
     # Create 'decompressed' folder
-    decompressed_folder_path = os.path.join(outer_folder_path, 'decompressed')
+    parent_folder_path = os.path.dirname(img_folder_path)
+    current_folder_name = os.path.basename(img_folder_path)
+    decompressed_folder_path = os.path.join(parent_folder_path, current_folder_name+'-decompressed')
     if os.path.isdir(decompressed_folder_path):
-        logging.info('already decompressed at '+ decompressed_folder_path)
+        logging.info('Already decompressed at '+ decompressed_folder_path)
         return decompressed_folder_path
 
     os.makedirs(decompressed_folder_path, exist_ok=True)
-    logging.info('decompressed folder created')
+    logging.info('Decompressed folder created')
 
     # store the paths of the hour folder
     hours = []
 
     # Iterate over the child folders in the outer folder
-    for folder_name in os.listdir(outer_folder_path):
-        folder_path = os.path.join(outer_folder_path, folder_name)
+    for folder_name in os.listdir(img_folder_path):
+        folder_path = os.path.join(img_folder_path, folder_name)
         # check if it is a sub folder
         if os.path.isdir(folder_path):
             hours.append(folder_path)
@@ -121,9 +166,13 @@ def list_and_decompress_pgm_files(outer_folder_path):
     return decompressed_folder_path
 
 
-def pgm_images_to_mp4(decompressed_folder_path, video_folder_path, file_suffix='video.mp4', method='None'):
+def pgm_images_to_mp4(decompressed_folder_path, video_folder_path='./videos', file_suffix='video.mp4', method='None'):
     logging.info('video convertion start')
     tic = datetime.datetime.now()
+
+    # create video_folder if not exists
+    if not os.path.exists(video_folder_path):
+            os.makedirs(video_folder_path)
 
     # Initialize a list to store the paths to the pgm files
     pgm_file_paths = []
@@ -152,6 +201,8 @@ def pgm_images_to_mp4(decompressed_folder_path, video_folder_path, file_suffix='
         elif method == 'clahe':
             clahe = cv2.createCLAHE(clipLimit=30)
             image = _clahe(image_path, clahe)
+        else:
+            image = cv2.imread(image_path, 0)
 
         cv2.putText(image, frame_number,(10, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (209, 80, 0, 255), 1)
         video_writer.write(image)
@@ -166,8 +217,8 @@ def pgm_images_to_mp4(decompressed_folder_path, video_folder_path, file_suffix='
 
 
 if __name__ == '__main__':
-    outer_folder_path = '/Volumes/Garrys_T7/rtroyer-useful-functions/image/rank/tmp/2020-01-04'
-    video_folder_path = '/Volumes/Garrys_T7/video_folder'
+    # img_folder_path = ''
+    # video_folder_path = ''
 
     logging.basicConfig(filename='video_generator.log',
                         # encoding='utf-8',
@@ -178,5 +229,8 @@ if __name__ == '__main__':
     logging.info('MiniVideoGenerator test code start ' +
                  datetime.datetime.now().strftime("%H:%M:%S"))
 
-    decompressed_folder_path = list_and_decompress_pgm_files(outer_folder_path)
-    pgm_images_to_mp4(decompressed_folder_path, video_folder_path, file_suffix='clahe3.mp4', method='clahe')
+    mydate = datetime.datetime(2016, 10, 13, 0, 0, 0)
+    asi = 'gako'
+    img_folder_path = download_themis_images(mydate, asi, force=0)
+    decompressed_folder_path = list_and_decompress_pgm_files(img_folder_path)
+    pgm_images_to_mp4(decompressed_folder_path, file_suffix='video.mp4', method='None')
