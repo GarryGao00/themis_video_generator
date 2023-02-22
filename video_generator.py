@@ -71,8 +71,9 @@ def _eqhist(image_path):
     return image
 
 # contrast limited adaptive histogram equalization
-def _clahe(image_path, clahe):
+def _clahe(image_path):
     image = cv2.imread(image_path, 0)
+    clahe = cv2.createCLAHE(clipLimit=30)
     image = clahe.apply(image)
     return image
 
@@ -85,6 +86,11 @@ def _relu(image_path, low = 0, pivot=0.02, ratio=1.7):
     image = _relu_help(image)
     image = image.clip(low, 255).astype(numpy.uint8)
 
+    return image
+
+# read the image without edit
+def _read_img(image_path):
+    image = cv2.imread(image_path, 0)
     return image
 
 # download images from UCalgary. 
@@ -181,31 +187,51 @@ def pgm_images_to_mp4(decompressed_folder_path, video_folder_path='./videos', fi
             pgm_file_paths.append(os.path.join(
                 decompressed_folder_path, file_name))
 
+    # Sort the list of pgm files -- needed as we decompressed using multithreading
+    pgm_file_paths.sort()
+
+    with multiprocessing.Pool() as pool:
+        # process all images using the pool of worker processes
+        if method == 'bytescale':
+            processed_images = pool.map(_bytescale, pgm_file_paths)
+        elif method == 'eqhist':
+            processed_images = pool.map(_eqhist, pgm_file_paths)
+        elif method == 'relu':
+            processed_images = pool.map(_relu, pgm_file_paths)
+        elif method == 'clahe':
+            processed_images = pool.map(_clahe, pgm_file_paths)
+        else:
+            processed_images = pool.map(_read_img, pgm_file_paths)
+
     # Initialize the video writer
     video_path = os.path.join(video_folder_path, file_name[:12]+file_suffix)
     video_writer = cv2.VideoWriter(
         video_path, cv2.VideoWriter_fourcc('m', 'p', '4', 'v'), 30, (256, 256), 0)
 
-    # Sort the list of pgm files -- needed as we decompressed using multithreading
-    pgm_file_paths.sort()
-        
-    # Iterate over the pgm files and write them to the video file
-    for image_path in pgm_file_paths:
-        frame_number = image_path.split('/')[-1]
-        if method == 'bytescale':
-            image = _bytescale(image_path)
-        elif method == 'eqhist':
-            image = _eqhist(image_path)
-        elif method == 'relu':
-            image = _relu(image_path)
-        elif method == 'clahe':
-            clahe = cv2.createCLAHE(clipLimit=30)
-            image = _clahe(image_path, clahe)
-        else:
-            image = cv2.imread(image_path, 0)
-
-        cv2.putText(image, frame_number,(10, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (209, 80, 0, 255), 1)
+    frame_number = 0
+    for image in processed_images:
+        cv2.putText(image, str(frame_number), (10, 50),
+                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (209, 80, 0, 255), 1)
         video_writer.write(image)
+        frame_number = frame_number + 1
+        
+    # # Iterate over the pgm files and write them to the video file
+    # for image_path in pgm_file_paths:
+    #     frame_number = image_path.split('/')[-1]
+    #     if method == 'bytescale':
+    #         image = _bytescale(image_path)
+    #     elif method == 'eqhist':
+    #         image = _eqhist(image_path)
+    #     elif method == 'relu':
+    #         image = _relu(image_path)
+    #     elif method == 'clahe':
+    #         clahe = cv2.createCLAHE(clipLimit=30)
+    #         image = _clahe(image_path, clahe)
+    #     else:
+    #         image = cv2.imread(image_path, 0)
+
+    #     cv2.putText(image, frame_number,(10, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (209, 80, 0, 255), 1)
+    #     video_writer.write(image)
 
     # Release the video writer
     video_writer.release()
@@ -233,4 +259,4 @@ if __name__ == '__main__':
     asi = 'gako'
     img_folder_path = download_themis_images(mydate, asi, force=0)
     decompressed_folder_path = list_and_decompress_pgm_files(img_folder_path)
-    pgm_images_to_mp4(decompressed_folder_path, file_suffix='video.mp4', method='None')
+    pgm_images_to_mp4(decompressed_folder_path, file_suffix='clahe1.mp4', method='clahe')
