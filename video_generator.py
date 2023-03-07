@@ -172,7 +172,7 @@ def list_and_decompress_pgm_files(img_folder_path):
     return decompressed_folder_path
 
 
-def pgm_images_to_mp4(decompressed_folder_path, video_folder_path='./videos', file_suffix='video.mp4', method='None'):
+def pgm_images_to_mp4(decompressed_folder_path, video_folder_path='./videos', file_suffix='video.mp4', method='None', processes=8):
     logging.info('video convertion start')
     tic = datetime.datetime.now()
 
@@ -190,7 +190,7 @@ def pgm_images_to_mp4(decompressed_folder_path, video_folder_path='./videos', fi
     # Sort the list of pgm files -- needed as we decompressed using multithreading
     pgm_file_paths.sort()
 
-    with multiprocessing.Pool() as pool:
+    with multiprocessing.Pool(processes=processes) as pool:
         # process all images using the pool of worker processes
         if method == 'bytescale':
             processed_images = pool.map(_bytescale, pgm_file_paths)
@@ -219,7 +219,7 @@ def pgm_images_to_mp4(decompressed_folder_path, video_folder_path='./videos', fi
     video_writer.release()
 
     toc = datetime.datetime.now()
-    logging.info('video convertion end in ' +
+    logging.info(method + ' video convertion end in ' +
                  str(round((toc-tic).total_seconds(), 2))+' seconds')
 
 
@@ -237,8 +237,8 @@ if __name__ == '__main__':
     logging.info('MiniVideoGenerator test code start ' +
                  datetime.datetime.now().strftime("%H:%M:%S"))
 
-    mydate = datetime.datetime(2016, 10, 13, 0, 0, 0)
-    asi = 'gako'
+    mydate = datetime.datetime(2020, 1, 4, 0, 0, 0)
+    asi = 'rank'
     img_folder_path = download_themis_images(mydate, asi, force=0)
     decompressed_folder_path = list_and_decompress_pgm_files(img_folder_path)
-    pgm_images_to_mp4(decompressed_folder_path, file_suffix='clahe1.mp4', method='clahe')
+    pgm_images_to_mp4(decompressed_folder_path, file_suffix='clahe.mp4', method='clahe')
