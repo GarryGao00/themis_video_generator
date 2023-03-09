@@ -6,6 +6,16 @@ import logging
 import datetime
 import numpy
 import subprocess
+import shutil
+
+# timing decorator
+def _timeit(func):
+    def wrapper(*args, **kwargs):
+        tic = datetime.datetime.now()
+        func(*args, **kwargs)
+        toc = datetime.datetime.now()
+        logging.info(f'{func.__name__} took {toc-tic} seconds')
+    return wrapper
 
 def _decompress_pgm_files(folder_path, decompressed_folder_path):
     logging.info('decompress start, hour = '+folder_path[-4:])
@@ -95,8 +105,10 @@ def _read_img(image_path):
 
 # download images from UCalgary. 
 # Date: datetime object; force: 0-check if downloaded first, 1-delete existing date and redownload
-def download_themis_images(date, asi, folder_path='./images',force=0):
-    logging.info('Downloading {} {}.'.format(asi, date.date()))
+# Return: fullpath, a string to the folder of the downloaded images
+@_timeit
+def download_themis_images(date, asi, folder_path='./images',force=0, skymap=0):
+    logging.info(f'Downloading {asi} {date.date()}, force = {force}, skymap = {skymap}')
 
     # check and create destination folder if not exists
     date_string = date.strftime('%Y-%m-%d')
@@ -109,23 +121,54 @@ def download_themis_images(date, asi, folder_path='./images',force=0):
         return full_path
     # if path exists and forcing, delete everything in the folder
     elif force == 1:
-        for filename in os.listdir(full_path):
-            file_path = os.path.join(full_path, filename)
-            try:
-                if os.path.isfile(file_path) or os.path.islink(file_path):
-                    os.unlink(file_path)
-            except Exception as e:
-                print(f"Failed to delete {file_path}. Reason: {e}")
-        # Delete all subdirectories in the directory
-        for dirpath, dirnames, filenames in os.walk(full_path, topdown=False):
-            for dirname in dirnames:
-                os.rmdir(os.path.join(dirpath, dirname))
+        try: 
+            shutil.rmtree(full_path)
+            os.makedirs(full_path)
+        except Exception as e:
+            logging.critical(f'folder cannot be removed at {full_path}')
+            logging.critical('Exception: {}'.format(e))
 
     # dir_url - destination directory url
     date_string_url = date.strftime('%Y/%m/%d/')
     themis_url = 'data.phys.ucalgary.ca/data/sort_by_project/THEMIS/asi/stream0/'
     dir_url = themis_url + date_string_url + asi + '*/'
 
+    # Download skymap
+    if skymap:
+        logging.info('Downloading skymap')
+        skymap_url = 'data.phys.ucalgary.ca/data/sort_by_project/THEMIS/asi/skymaps/' + asi + '/'
+
+        # find skymap dirs online
+        try:
+            skymap_dirs = subprocess.check_output(['rsync',
+                                                'rsync://' + skymap_url]).splitlines()
+            skymap_dirs = [str(d.split(b' ')[-1], 'UTF-8')
+                        for d in skymap_dirs[1:]]
+        except Exception as e:
+            logging.critical('Unable to access skymap server: {}. '
+                            'Server may be down. Stopping.'.format(skymap_url))
+            logging.critical('Exception: {}'.format(e))
+            raise
+
+        # Convert to datetimes
+        skymap_dates = [d.split('_')[1] for d in skymap_dirs]
+        skymap_dates = [datetime.datetime.strptime(d, '%Y%m%d') for d in skymap_dates]
+        time_diffs = numpy.array([(date - d).total_seconds() for d in skymap_dates])
+        skymap_dir = skymap_dirs[numpy.where(time_diffs > 0, time_diffs, numpy.inf).argmin()]
+
+        skymap_url = skymap_url + skymap_dir + '/'
+        try:
+            subprocess.run(['rsync', '-vzrt', 'rsync://' + skymap_url + '*.sav',
+                            full_path], stdout=subprocess.DEVNULL)
+            logging.info('Successfully downloaded skymap.'
+                        ' It is saved at {}.'.format(full_path))
+        except Exception as e:
+            logging.critical(
+                'Unable to download skymap:{}. Stopping.'.format(skymap_url))
+            logging.critical('Exception: {}'.format(e))
+            raise
+
+    # Download images
     logging.info('Downloading images from {}...'.format(dir_url))
     try:
         subprocess.run(['rsync', '-vzrt', '--size-only', '--ignore-existing', 'rsync://' + dir_url,
@@ -143,7 +186,7 @@ def list_and_decompress_pgm_files(img_folder_path):
     logging.info('list_and_decompress start')
     tic = datetime.datetime.now()
 
-    # Create 'decompressed' folder
+    # Check and Create 'decompressed' folder
     parent_folder_path = os.path.dirname(img_folder_path)
     current_folder_name = os.path.basename(img_folder_path)
     decompressed_folder_path = os.path.join(parent_folder_path, current_folder_name+'-decompressed')
@@ -171,10 +214,10 @@ def list_and_decompress_pgm_files(img_folder_path):
     logging.info('list_and_decompress done in ' + str((toc-tic).total_seconds()) + ' seconds')
     return decompressed_folder_path
 
-
+@_timeit
 def pgm_images_to_mp4(decompressed_folder_path, video_folder_path='./videos', file_suffix='video.mp4', method='None', processes=8):
     logging.info('video convertion start')
-    tic = datetime.datetime.now()
+
 
     # create video_folder if not exists
     if not os.path.exists(video_folder_path):
@@ -204,7 +247,10 @@ def pgm_images_to_mp4(decompressed_folder_path, video_folder_path='./videos', fi
             processed_images = pool.map(_read_img, pgm_file_paths)
 
     # Initialize the video writer
-    video_path = os.path.join(video_folder_path, file_name[:12]+file_suffix)
+    camera_date = pgm_file_paths[0].split('/')[-1][:12]
+    video_path = os.path.join(
+        video_folder_path, camera_date+file_suffix)
+    logging.info(f'video_path = {video_path}, file name = {camera_date}')
     video_writer = cv2.VideoWriter(
         video_path, cv2.VideoWriter_fourcc('m', 'p', '4', 'v'), 30, (256, 256), 0)
 
@@ -217,28 +263,10 @@ def pgm_images_to_mp4(decompressed_folder_path, video_folder_path='./videos', fi
 
     # Release the video writer
     video_writer.release()
-
-    toc = datetime.datetime.now()
-    logging.info(method + ' video convertion end in ' +
-                 str(round((toc-tic).total_seconds(), 2))+' seconds')
+    logging.info(f'video converted at {video_path}')
+    return
 
 
 
-if __name__ == '__main__':
-    # img_folder_path = ''
-    # video_folder_path = ''
 
-    logging.basicConfig(filename='video_generator.log',
-                        # encoding='utf-8',
-                        format='%(asctime)s %(levelname)-8s %(message)s',
-                        level=logging.INFO,
-                        datefmt='%Y-%m-%d %H:%M:%S')
 
-    logging.info('MiniVideoGenerator test code start ' +
-                 datetime.datetime.now().strftime("%H:%M:%S"))
-
-    mydate = datetime.datetime(2020, 1, 4, 0, 0, 0)
-    asi = 'rank'
-    img_folder_path = download_themis_images(mydate, asi, force=0)
-    decompressed_folder_path = list_and_decompress_pgm_files(img_folder_path)
-    pgm_images_to_mp4(decompressed_folder_path, file_suffix='clahe.mp4', method='clahe')
