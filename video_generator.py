@@ -7,14 +7,17 @@ import datetime
 import numpy
 import subprocess
 import shutil
+import h5py
+from scipy.io import readsav
 
 # timing decorator
 def _timeit(func):
     def wrapper(*args, **kwargs):
         tic = datetime.datetime.now()
-        func(*args, **kwargs)
+        result = func(*args, **kwargs)
         toc = datetime.datetime.now()
         logging.info(f'{func.__name__} took {toc-tic} seconds')
+        return result
     return wrapper
 
 def _decompress_pgm_files(folder_path, decompressed_folder_path):
@@ -107,7 +110,7 @@ def _read_img(image_path):
 # Date: datetime object; force: 0-check if downloaded first, 1-delete existing date and redownload
 # Return: fullpath, a string to the folder of the downloaded images
 @_timeit
-def download_themis_images(date, asi, folder_path='./images',force=0, skymap=0):
+def download_themis_images(date, asi, folder_path='./images',force=0, skymap=1):
     logging.info(f'Downloading {asi} {date.date()}, force = {force}, skymap = {skymap}')
 
     # check and create destination folder if not exists
@@ -117,7 +120,7 @@ def download_themis_images(date, asi, folder_path='./images',force=0, skymap=0):
         os.makedirs(full_path)
     # if path exists and not forcing, return path
     elif force == 0:
-        logging.info('Already downloaded at {}.'.format(full_path))
+        logging.info(f'Already downloaded at {full_path}.')
         return full_path
     # if path exists and forcing, delete everything in the folder
     elif force == 1:
@@ -181,10 +184,9 @@ def download_themis_images(date, asi, folder_path='./images',force=0, skymap=0):
 
     return full_path
 
-
+@_timeit
 def list_and_decompress_pgm_files(img_folder_path):
-    logging.info('list_and_decompress start')
-    tic = datetime.datetime.now()
+    logging.info(f'list_and_decompress start for {img_folder_path}')
 
     # Check and Create 'decompressed' folder
     parent_folder_path = os.path.dirname(img_folder_path)
@@ -202,8 +204,13 @@ def list_and_decompress_pgm_files(img_folder_path):
 
     # Iterate over the child folders in the outer folder
     for folder_name in os.listdir(img_folder_path):
-        folder_path = os.path.join(img_folder_path, folder_name)
+        # if it is the skymap, move it to the decompressed folder
+        if folder_name.endswith('.sav') and not folder_name.startswith('.'):
+            skymap_path = os.path.join(img_folder_path, folder_name)
+            shutil.copy(skymap_path, decompressed_folder_path)
+            continue
         # check if it is a sub folder
+        folder_path = os.path.join(img_folder_path, folder_name)
         if os.path.isdir(folder_path):
             hours.append(folder_path)
 
@@ -211,22 +218,21 @@ def list_and_decompress_pgm_files(img_folder_path):
         _decompress_pgm_files(hour, decompressed_folder_path)
 
     toc = datetime.datetime.now()
-    logging.info('list_and_decompress done in ' + str((toc-tic).total_seconds()) + ' seconds')
+    logging.info('list_and_decompress done')
     return decompressed_folder_path
 
 @_timeit
 def pgm_images_to_mp4(decompressed_folder_path, video_folder_path='./videos', file_suffix='video.mp4', method='None', processes=8):
     logging.info('video convertion start')
 
-
     # create video_folder if not exists
     if not os.path.exists(video_folder_path):
             os.makedirs(video_folder_path)
 
-    # Initialize a list to store the paths to the pgm files
+    # Initialize a list to store the paths to the decompressed pgm files
     pgm_file_paths = []
     for file_name in os.listdir(decompressed_folder_path):
-        if not file_name.startswith('.'):
+        if not file_name.startswith('.') and file_name.endswith('.pgm'):
             pgm_file_paths.append(os.path.join(
                 decompressed_folder_path, file_name))
 
@@ -266,7 +272,111 @@ def pgm_images_to_mp4(decompressed_folder_path, video_folder_path='./videos', fi
     logging.info(f'video converted at {video_path}')
     return
 
+@_timeit
+def pgm_images_to_h5(decompressed_folder_path, h5_folder_path='./h5s', file_suffix='.h5', method='None', processes=8):
+    logging.info('h5 convertion start')
 
+    # create h5 file folder if not exists
+    if not os.path.exists(h5_folder_path):
+        os.makedirs(h5_folder_path)
 
+    # Initialize a list to store the paths to the decompressed pgm files and read in skymap
+    pgm_file_paths = []
+    for file_name in os.listdir(decompressed_folder_path):
+        if not file_name.startswith('.'):
+            if file_name.endswith('.pgm'):
+                pgm_file_paths.append(os.path.join(decompressed_folder_path, file_name))
+            elif file_name.endswith('.sav'):
+                skymap_path = os.path.join(decompressed_folder_path, file_name)
+    
+    # Sort the list of pgm files -- needed as we decompressed using multithreading
+    pgm_file_paths.sort()
 
+    # process the images
+    with multiprocessing.Pool(processes=processes) as pool:
+        # process all images using the pool of worker processes
+        if method == 'bytescale':
+            processed_images = pool.map(_bytescale, pgm_file_paths)
+        elif method == 'eqhist':
+            processed_images = pool.map(_eqhist, pgm_file_paths)
+        elif method == 'relu':
+            processed_images = pool.map(_relu, pgm_file_paths)
+        elif method == 'clahe':
+            processed_images = pool.map(_clahe, pgm_file_paths)
+        else:
+            processed_images = pool.map(_read_img, pgm_file_paths)
+    
+    # Stack the images into a 3D NumPy array
+    processed_images_array = numpy.stack(processed_images, axis=-1)
+    #logging.info(f'processed_images shape = {processed_images_array.shape}')
+
+    try:
+            # Try reading IDL save file
+        skymap = readsav(skymap_path, python_dict=True)['skymap']
+
+        # Get arrays
+        skymap_alt = skymap['FULL_MAP_ALTITUDE'][0]
+        skymap_glat = skymap['FULL_MAP_LATITUDE'][0][:, 0:-1, 0:-1]
+        skymap_glon = skymap['FULL_MAP_LONGITUDE'][0][:, 0:-1, 0:-1]
+        skymap_elev = skymap['FULL_ELEVATION'][0]
+        skymap_azim = skymap['FULL_AZIMUTH'][0]
+
+        logging.info('Read in skymap file from: {}'.format(skymap_path))
+
+    except Exception as e:
+        logging.error('Unable to read skymap file, creating file without it.')
+        logging.error('Exception: {}'.format(e))
+
+        skymap_alt = numpy.array(['Unavailable'])
+        skymap_glat = numpy.array(['Unavailable'])
+        skymap_glon = numpy.array(['Unavailable'])
+        skymap_elev = numpy.array(['Unavailable'])
+        skymap_azim = numpy.array(['Unavailable'])
+    
+    # Initialize the h5 file 
+    camera_date = pgm_file_paths[0].split('/')[-1][:12]
+    h5_path = os.path.join(h5_folder_path, camera_date+file_suffix)
+    logging.info(f'video_path = {h5_path}, file name = {camera_date}')
+
+    # Write in information
+    with h5py.File(h5_path, 'w') as h5f:
+
+        # Initialize the datasets for images and timestamps
+        img_ds = h5f.create_dataset('images', dtype='uint8', 
+                                    data=processed_images_array)
+
+        time_ds = h5f.create_dataset('timestamps', shape=(0,),
+                                     maxshape=(None,),
+                                     dtype='uint64')
+
+        alt_ds = h5f.create_dataset('skymap_alt', shape=skymap_alt.shape,
+                                    dtype='float', data=skymap_alt)
+
+        glat_ds = h5f.create_dataset('skymap_glat', shape=skymap_glat.shape,
+                                     dtype='float', data=skymap_glat)
+
+        glon_ds = h5f.create_dataset('skymap_glon', shape=skymap_glon.shape,
+                                     dtype='float', data=skymap_glon)
+
+        elev_ds = h5f.create_dataset('skymap_elev', shape=skymap_elev.shape,
+                                     dtype='float', data=skymap_elev)
+
+        azim_ds = h5f.create_dataset('skymap_azim', shape=skymap_azim.shape,
+                                     dtype='float', data=skymap_azim)
+        
+        # Add attributes to datasets
+        time_ds.attrs['about'] = ('UT POSIX Timestamp.'
+                                  ' Use datetime.fromtimestamp '
+                                  'to convert. Time is start of image.'
+                                  ' 1 second exposure.')
+        img_ds.attrs['wavelength'] = 'white'
+        # img_ds.attrs['station_latitude'] = float(meta[0]['Geodetic latitude'])
+        # img_ds.attrs['station_longitude'] = float(meta[0]['Geodetic Longitude'])
+        alt_ds.attrs['about'] = 'Altitudes for different skymaps.'
+        glat_ds.attrs['about'] = 'Geographic latitude at pixel corner, excluding last.'
+        glon_ds.attrs['about'] = 'Geographic longitude at pixel corner, excluding last.'
+        elev_ds.attrs['about'] = 'Elevation angle of pixel center.'
+        azim_ds.attrs['about'] = 'Azimuthal angle of pixel center.'
+
+    return
 

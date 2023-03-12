@@ -2,6 +2,7 @@ images/*
 videos/*
 ._*
 test.py
+h5s/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
