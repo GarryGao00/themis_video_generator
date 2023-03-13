@@ -8,6 +8,7 @@ import numpy
 import subprocess
 import shutil
 import h5py
+import re
 from scipy.io import readsav
 
 # timing decorator
@@ -282,9 +283,15 @@ def pgm_images_to_h5(decompressed_folder_path, h5_folder_path='./h5s', file_suff
 
     # Initialize a list to store the paths to the decompressed pgm files and read in skymap
     pgm_file_paths = []
+    timestamps = []
     for file_name in os.listdir(decompressed_folder_path):
         if not file_name.startswith('.'):
             if file_name.endswith('.pgm'):
+                # extract the time
+                timestamp_str = re.findall(r'\d{14}', file_name)[0]
+                timestamp = datetime.datetime.strptime(timestamp_str, '%Y%m%d%H%M%S')
+                timestamps.append(timestamp)
+                # add pgm image path
                 pgm_file_paths.append(os.path.join(decompressed_folder_path, file_name))
             elif file_name.endswith('.sav'):
                 skymap_path = os.path.join(decompressed_folder_path, file_name)
@@ -309,6 +316,8 @@ def pgm_images_to_h5(decompressed_folder_path, h5_folder_path='./h5s', file_suff
     # Stack the images into a 3D NumPy array
     processed_images_array = numpy.stack(processed_images, axis=-1)
     #logging.info(f'processed_images shape = {processed_images_array.shape}')
+    # Stack the timestamps into the format
+    timestamps_array = numpy.array([int(t.timestamp()) for t in timestamps])
 
     try:
             # Try reading IDL save file
@@ -345,9 +354,8 @@ def pgm_images_to_h5(decompressed_folder_path, h5_folder_path='./h5s', file_suff
         img_ds = h5f.create_dataset('images', dtype='uint8', 
                                     data=processed_images_array)
 
-        time_ds = h5f.create_dataset('timestamps', shape=(0,),
-                                     maxshape=(None,),
-                                     dtype='uint64')
+        time_ds = h5f.create_dataset('timestamps', dtype='uint64',
+                                     data = timestamps_array)
 
         alt_ds = h5f.create_dataset('skymap_alt', shape=skymap_alt.shape,
                                     dtype='float', data=skymap_alt)
@@ -377,6 +385,7 @@ def pgm_images_to_h5(decompressed_folder_path, h5_folder_path='./h5s', file_suff
         glon_ds.attrs['about'] = 'Geographic longitude at pixel corner, excluding last.'
         elev_ds.attrs['about'] = 'Elevation angle of pixel center.'
         azim_ds.attrs['about'] = 'Azimuthal angle of pixel center.'
-
+    
+    logging.info(f'h5 file converted at {h5_path}')
     return
 
