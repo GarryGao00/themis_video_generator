@@ -1,3 +1,8 @@
+"""
+Code by Yang Gao and Riley Troyer
+University of Iowa, Physics and Astronomy department.
+"""
+
 import cv2
 import themis_imager_readfile
 import multiprocessing
@@ -271,7 +276,7 @@ def pgm_images_to_mp4(decompressed_folder_path, video_folder_path='./videos', fi
     # Release the video writer
     video_writer.release()
     logging.info(f'video converted at {video_path}')
-    return
+    return video_path
 
 @_timeit
 def pgm_images_to_h5(decompressed_folder_path, h5_folder_path='./h5s', file_suffix='.h5', method='None', processes=8):
@@ -387,5 +392,5 @@ def pgm_images_to_h5(decompressed_folder_path, h5_folder_path='./h5s', file_suff
         azim_ds.attrs['about'] = 'Azimuthal angle of pixel center.'
     
     logging.info(f'h5 file converted at {h5_path}')
-    return
+    return h5_path
 
