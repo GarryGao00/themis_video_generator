@@ -26,6 +26,7 @@ def _timeit(func):
         return result
     return wrapper
 
+# helper function that decompress one folder
 def _decompress_pgm_files(folder_path, decompressed_folder_path):
     logging.info('decompress start, hour = '+folder_path[-4:])
     # folder_path: str, should be ut** folder path
@@ -112,11 +113,18 @@ def _read_img(image_path):
     image = cv2.imread(image_path, 0)
     return image
 
-# download images from UCalgary. 
-# Date: datetime object; force: 0-check if downloaded first, 1-delete existing date and redownload
-# Return: fullpath, a string to the folder of the downloaded images
 @_timeit
 def download_themis_images(date, asi, folder_path='./images',force=0, skymap=1):
+    """ Download images from UCalgary
+    Inputs: 
+        date: datetime object. Example: datetime.datetime(2020, 3, 19, 0, 0)
+        asi: str. Example: 'gako'
+        folder_path: str. Folder to store the downloaded images
+        force: Bool. 0-check if downloaded first, 1-delete existing date and redownload
+        skymap: Bool. 0-not download skymap, 1-download skymap
+    Returns:
+        decompressed_folder_path: str. Example: './images/gako/2020-01-31-decompressed'
+    """
     logging.info(f'Downloading {asi} {date.date()}, force = {force}, skymap = {skymap}')
 
     # check and create destination folder if not exists
@@ -192,6 +200,12 @@ def download_themis_images(date, asi, folder_path='./images',force=0, skymap=1):
 
 @_timeit
 def list_and_decompress_pgm_files(img_folder_path):
+    """ Decompress the images downloaded by the download_themis_images() function
+    Inputs: 
+        img_folder_path: str. Example: './images/gako/2020-01-31'
+    Returns:
+        decompressed_folder_path: str. Example: './images/gako/2020-01-31-decompressed'
+    """
     logging.info(f'list_and_decompress start for {img_folder_path}')
 
     # Check and Create 'decompressed' folder
@@ -229,6 +243,16 @@ def list_and_decompress_pgm_files(img_folder_path):
 
 @_timeit
 def pgm_images_to_mp4(decompressed_folder_path, video_folder_path='./videos', file_suffix='video.mp4', method='None', processes=8):
+    """ Process and stitch decompressed pgm images to form video
+    Inputs: 
+        decompressed_folder_path: str. Example: './images/gako/2020-01-31-decompressed'
+        video_folder_path: str. Folder path to store videos
+        file_suffix: str. Suffix of the created file. Use it to distinguish videos using different processing skills.
+        method: str. Options: 'bytescale', 'eqhist', 'relu', 'clahe'. Default to not processing the images
+        processes: int. Number of processes called in multiprocessing.
+    Returns:
+        video_path: str. Example: './videos/gako20161013clahe.mp4'
+    """
     logging.info('video convertion start')
 
     # create video_folder if not exists
@@ -280,6 +304,16 @@ def pgm_images_to_mp4(decompressed_folder_path, video_folder_path='./videos', fi
 
 @_timeit
 def pgm_images_to_h5(decompressed_folder_path, h5_folder_path='./h5s', file_suffix='.h5', method='None', processes=8):
+    """ Process and stitch decompressed pgm images to form h5 file
+    Inputs: 
+        decompressed_folder_path: str. Example: './images/gako/2020-01-31-decompressed'
+        video_folder_path: str. Folder path to store h5 files
+        file_suffix: str. Suffix of the created file. Use it to distinguish h5s using different processing skills.
+        method: str. Options: 'bytescale', 'eqhist', 'relu', 'clahe'. Default to not processing the images
+        processes: int. Number of processes called in multiprocessing.
+    Returns:
+        h5_path: str. Example: './h5s/gako20161013clahe.h5'
+    """
     logging.info('h5 convertion start')
 
     # create h5 file folder if not exists
