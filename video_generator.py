@@ -279,7 +279,11 @@ def pgm_images_to_mp4(decompressed_folder_path, video_folder_path='./videos', fi
             processed_images = pool.map(_relu, pgm_file_paths)
         elif method == 'clahe':
             processed_images = pool.map(_clahe, pgm_file_paths)
+        elif method == 'None':
+            processed_images = pool.map(_read_img, pgm_file_paths)
         else:
+            logging.critical(
+                'method not available, using non-processed images.')
             processed_images = pool.map(_read_img, pgm_file_paths)
 
     # Initialize the video writer
@@ -349,7 +353,10 @@ def pgm_images_to_h5(decompressed_folder_path, h5_folder_path='./h5s', file_suff
             processed_images = pool.map(_relu, pgm_file_paths)
         elif method == 'clahe':
             processed_images = pool.map(_clahe, pgm_file_paths)
-        else:
+        elif method =='None':
+            processed_images = pool.map(_read_img, pgm_file_paths)
+        else: 
+            logging.critical('method not available, using non-processed images.')
             processed_images = pool.map(_read_img, pgm_file_paths)
     
     # Stack the images into a 3D NumPy array
@@ -359,7 +366,7 @@ def pgm_images_to_h5(decompressed_folder_path, h5_folder_path='./h5s', file_suff
     timestamps_array = numpy.array([int(t.timestamp()) for t in timestamps])
 
     try:
-            # Try reading IDL save file
+        # Try reading IDL save file
         skymap = readsav(skymap_path, python_dict=True)['skymap']
 
         # Get arrays
@@ -387,10 +394,12 @@ def pgm_images_to_h5(decompressed_folder_path, h5_folder_path='./h5s', file_suff
     logging.info(f'video_path = {h5_path}, file name = {camera_date}')
 
     # Write in information
+
+    data_dtype = 'uint16' if method=='None' else 'uint8'
     with h5py.File(h5_path, 'w') as h5f:
 
         # Initialize the datasets for images and timestamps
-        img_ds = h5f.create_dataset('images', dtype='uint8', 
+        img_ds = h5f.create_dataset('images', dtype=data_dtype, 
                                     data=processed_images_array)
 
         time_ds = h5f.create_dataset('timestamps', dtype='uint64',
