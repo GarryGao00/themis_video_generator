@@ -1,0 +1,5 @@
+h5py==3.6.0
+numpy==1.24.2
+opencv_python==4.6.0.66
+scipy==1.7.3
+themis_imager_readfile==1.0.11

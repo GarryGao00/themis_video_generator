@@ -1,8 +1,9 @@
 images/*
 videos/*
 ._*
-test.py
+*test.py
 h5s/*
+stream0_download.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
