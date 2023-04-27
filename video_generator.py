@@ -97,6 +97,14 @@ def _clahe(image_path):
     image = clahe.apply(image)
     return image
 
+# contrast limited adaptive histogram equalization on 16 bit image first then downscale the result to 8 bit
+def _clahe16bit(image_path):
+    image = cv2.imread(image_path, -1)
+    clahe = cv2.createCLAHE(clipLimit=3, tileGridSize=(8,8))
+    image = clahe.apply(image)
+    image_8bit = cv2.convertScaleAbs(image, alpha=(255.0/65535.0))
+    return image_8bit
+
 def _relu(image_path, low = 0, pivot=0.02, ratio=1.7):
     # process the data in relu
     def _relu_help(data, pivot=pivot, low=low, ratio=ratio):
@@ -279,6 +287,8 @@ def pgm_images_to_mp4(decompressed_folder_path, video_folder_path='./videos', fi
             processed_images = pool.map(_relu, pgm_file_paths)
         elif method == 'clahe':
             processed_images = pool.map(_clahe, pgm_file_paths)
+        elif method =='clahe16':
+            processed_images = pool.map(_clahe16bit, pgm_file_paths)
         elif method == 'None':
             processed_images = pool.map(_read_img, pgm_file_paths)
         else:
@@ -353,6 +363,8 @@ def pgm_images_to_h5(decompressed_folder_path, h5_folder_path='./h5s', file_suff
             processed_images = pool.map(_relu, pgm_file_paths)
         elif method == 'clahe':
             processed_images = pool.map(_clahe, pgm_file_paths)
+        elif method == 'clahe16':
+            processed_images = pool.map(_clahe16bit, pgm_file_paths)
         elif method =='None':
             processed_images = pool.map(_read_img, pgm_file_paths)
         else: 
