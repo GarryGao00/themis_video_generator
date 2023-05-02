@@ -245,7 +245,6 @@ def list_and_decompress_pgm_files(img_folder_path):
     for hour in hours:
         _decompress_pgm_files(hour, decompressed_folder_path)
 
-    toc = datetime.datetime.now()
     logging.info('list_and_decompress done')
     return decompressed_folder_path
 
