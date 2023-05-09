@@ -77,6 +77,7 @@ if __name__ == '__main__':
         print(f'Start or end date not valid, Exception: {e}')
         sys.exit()
 
+    # decompress the images to a dictionary
     # full_dict example k-v pair: {'stream0/2011/08/08':day_dict}
     full_dict = {}
     # address example: stream0/2011/08/08/mcgr_themis11/ut09/
@@ -85,15 +86,16 @@ if __name__ == '__main__':
         # Iterate over the child folders in the outer folder
         # day_dict example k-v pair: {'atha20200104000206':img[:,:,:]}
         day_dict = {}
-        hours = []
         for asi_name in os.listdir(date_folder_path):  # /mcgr_themis11
             asi_folder_path = os.path.join(date_folder_path, asi_name)
+            hours = []
             for hour_name in os.listdir(asi_folder_path):  # /ut09
                 # check if it is a sub folder
                 hour_folder_path = os.path.join(asi_folder_path, hour_name)
                 if os.path.isdir(hour_folder_path):
                     hours.append(hour_folder_path)
-
             for hour in hours:
                 _decompress_pgm_files_to_dict(hour, day_dict)
         full_dict[date_folder_path] = day_dict
+
+    # use ML algorithm to classify the images
