@@ -45,9 +45,7 @@ if __name__ == '__main__':
         # Iterate over the child folders in the outer folder
         # day_dict example k-v pair: {'atha20200104000206':img[:,:,:]}
         day_dict = {}
-        hours = []
         for asi_name in os.listdir(date_folder_path):  # /mcgr_themis11
-            hours = []
             logging.info(f'Processing asi = {asi_name}, date_folder_path = {date_folder_path}')
             asi_folder_path = os.path.join(date_folder_path, asi_name)
             hours = []
