@@ -1,10 +1,31 @@
 from video_generator import *
 from datetime import datetime, timedelta
-import sys
 import logging
+from tabulate import tabulate
+import datetime
+from tensorflow.keras.models import load_model
+from collections import deque
+import numpy as np
+import pickle
+import cv2
+import os
 
 # set the folder path for stream0
-stream0_path = 'D:\stream0'
+stream0_path = '/home/garry/pa_project/stream0'
+
+# load trained model
+model = load_model("/Volumes/Garrys_T7/pa_sample_models/CNN model/model/CNN_0119.model")
+
+# load the binarized class labels
+lb = pickle.loads(open("model/lb_3c.pickle", "rb").read())
+
+# Predictions queue. The prediction is smoothed by
+# the averarge of past "maxlen" frames
+Q = deque(maxlen=20)
+
+# np.array to cut the bourndary of the frames
+elev_angle = np.load("T_angle.npy")
+angle = 15
 
 # get the dates available between start_date and end_date in folder_path that points to stream0 folder
 def get_subfolders_in_range(start_date, end_date, folder_path=stream0_path):
@@ -21,8 +42,6 @@ def get_subfolders_in_range(start_date, end_date, folder_path=stream0_path):
     return subfolder_paths
 
 # helper function that decompress one folder
-
-
 def decompress_pgm_files_to_dict(folder_path, img_dict):
     logging.info('decompressing hour = '+folder_path[-4:]+'  '+folder_path)
     # folder_path: str, should be ut** folder path
@@ -48,3 +67,16 @@ def decompress_pgm_files_to_dict(folder_path, img_dict):
         img_dict[key] = value
 
     return
+
+# input should be a frame/image, output (predition, label)
+def pred_frame(image):
+    frame = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR) # convert the frame to RGB color
+    frame = cv2.resize(frame, (256, 256)).astype("float32") # resize the frame to 256 by 256 to cut the boundary
+    frame[elev_angle < angle] = 0 #cut the boundary
+    frame = cv2.resize(frame, (224, 224)).astype("float32") # resize the frame to 224 by 224 for prediction
+    preds = model.predict(np.expand_dims(frame, axis=0))[0] # prediction
+    i = np.argmax(preds)
+    confidence = np.max(preds)
+    label = lb.classes_[i]
+
+    return preds, label, i, confidence
