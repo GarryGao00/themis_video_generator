@@ -2,7 +2,6 @@ from video_generator import *
 from datetime import datetime, timedelta
 import logging
 from tabulate import tabulate
-import datetime
 from tensorflow.keras.models import load_model
 from collections import deque
 import numpy as np
@@ -11,20 +10,24 @@ import cv2
 import os
 
 # set the folder path for stream0
-stream0_path = '/home/garry/pa_project/stream0'
+# stream0_path = '/home/garry/pa_project/stream0'
+stream0_path = 'D:\stream0'
 
 # load trained model
-model = load_model("/Volumes/Garrys_T7/pa_sample_models/CNN model/model/CNN_0119.model")
+model_path = 'F:\pa_sample_models\CNN model'
+model = load_model(
+    os.path.join(model_path, 'model\CNN_0119.model'))
 
 # load the binarized class labels
-lb = pickle.loads(open("model/lb_3c.pickle", "rb").read())
+lb_path = os.path.join(model_path, "model/lb_3c.pickle")
+lb = pickle.loads(open(lb_path, "rb").read())
 
 # Predictions queue. The prediction is smoothed by
 # the averarge of past "maxlen" frames
 Q = deque(maxlen=20)
 
 # np.array to cut the bourndary of the frames
-elev_angle = np.load("T_angle.npy")
+elev_angle = np.load(os.path.join(model_path, "T_angle.npy"))
 angle = 15
 
 # get the dates available between start_date and end_date in folder_path that points to stream0 folder
