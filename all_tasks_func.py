@@ -1,7 +1,6 @@
 from video_generator import *
 from datetime import datetime, timedelta
 import logging
-from tabulate import tabulate
 from tensorflow.keras.models import load_model
 from collections import deque
 import numpy as np
@@ -83,3 +82,22 @@ def pred_frame(image):
     label = lb.classes_[i]
 
     return preds, label, i, confidence
+
+
+def process_image(item):
+    key, value = item
+    dt = datetime.strptime(key[4:], '%Y%m%d%H%M%S')
+    year, month, day = str(dt.year), str(dt.month), str(dt.day)
+    directory_path = os.path.join(year, month, day)
+    ymd_str = dt.strftime('%Y%m%d')
+    time_str = dt.strftime('%H:%M:%S')
+
+    # process the image using clahe
+    clahe = cv2.createCLAHE(clipLimit=3, tileGridSize=(8, 8))
+    value = cv2.convertScaleAbs(clahe.apply(value), alpha=(255.0/65535.0))
+
+    # classification name format: YYYY/MM/DD/YYYYMMDD_site_themis##_classifications.txt
+    preds, prediction_str, prediction, confidence = pred_frame(value)
+    new_row = {'date': ymd_str, 'time': time_str, 'prediction': prediction,
+               'prediction_str': prediction_str, 'confidence': confidence}
+    return new_row, directory_path, ymd_str
