@@ -79,20 +79,26 @@ if __name__ == '__main__':
                 logging.info(f'skipping date_folder_path = {date_folder_path}, asi = {asi_name}')
                 continue
 
-            # Create a pool of worker processes
-            pool = Pool(processes=4)
+            # try multiprocessing steps
+            try: 
+                # Create a pool of worker processes
+                pool = Pool(processes=4)
 
-            # Map the process_image function to each item in camera_dict using multiprocessing
-            results = pool.map(process_image, camera_dict.items())
+                # Map the process_image function to each item in camera_dict using multiprocessing
+                results = pool.map(process_image, camera_dict.items())
 
-            # Close the pool of worker processes
-            pool.close()
-            pool.join()
+                # Close the pool of worker processes
+                pool.close()
+                pool.join()
 
-            # Append the processed rows to the DataFrame
-            for result in results:
-                new_row, directory_path, ymd_str = result
-                df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+                # Append the processed rows to the DataFrame
+                for result in results:
+                    new_row, directory_path, ymd_str = result
+                    df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+
+            except Exception as e:
+                logging.CRITICAL(f'Error occurs as {e}')
+                sys.exit()
 
             try:  
                 if not os.path.exists(directory_path):
