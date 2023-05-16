@@ -13,6 +13,7 @@ import os
 stream0_path = 'D:\stream0'
 
 # load trained model
+# model_path = '/home/garry/pa_project/themis_video_generator/CNN_model'
 model_path = 'F:\pa_sample_models\CNN model'
 model = load_model(
     os.path.join(model_path, 'model\CNN_0119.model'))
