@@ -15,7 +15,6 @@ import multiprocessing as mp
 if len(sys.argv) > 1:
     args = sys.argv
 
-mp.set_start_method('spawn')
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
 if __name__ == '__main__':
@@ -94,6 +93,7 @@ if __name__ == '__main__':
             # try multiprocessing steps
             try: 
                 logging.info(f'starting multiprocessing')
+                mp.set_start_method('spawn')
                 # Create a pool of worker processes
                 num_workers = cpu_count()
                 pool = Pool(processes=num_workers)
