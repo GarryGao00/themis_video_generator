@@ -9,10 +9,13 @@ import numpy as np
 import os
 import pandas as pd
 from multiprocessing import Pool, cpu_count
+import multiprocessing as mp
 
 # get args from command line
 if len(sys.argv) > 1:
     args = sys.argv
+
+mp.set_start_method('spawn')
 
 if __name__ == '__main__':
 
