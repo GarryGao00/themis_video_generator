@@ -93,15 +93,16 @@ if __name__ == '__main__':
                 # Create a pool of worker processes
                 num_workers = cpu_count()
                 pool = Pool(processes=num_workers)
+                logging.info(f'pool generated, num_workers = {num_workers}')
 
                 # Map the process_image function to each item in camera_dict using multiprocessing
                 results = pool.map(process_image, camera_dict.items())
+                logging.info('results generated')
 
                 # Close the pool of worker processes
                 pool.close()
                 pool.join()
-
-                logging.info('results generated')
+                logging.info('pool joined')    
 
                 # Append the processed rows to the DataFrame
                 for result in results:

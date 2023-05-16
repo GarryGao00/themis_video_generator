@@ -73,16 +73,21 @@ def decompress_pgm_files_to_dict(folder_path, img_dict):
 
 # input should be a frame/image, output (predition, label)
 def pred_frame(image):
-    frame = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR) # convert the frame to RGB color
-    frame = cv2.resize(frame, (256, 256)).astype("float32") # resize the frame to 256 by 256 to cut the boundary
-    frame[elev_angle < angle] = 0 #cut the boundary
-    frame = cv2.resize(frame, (224, 224)).astype("float32") # resize the frame to 224 by 224 for prediction
-    preds = model.predict(np.expand_dims(frame, axis=0))[0] # prediction
-    i = np.argmax(preds)
-    confidence = np.max(preds)
-    label = lb.classes_[i]
+    try:
+        frame = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR) # convert the frame to RGB color
+        frame = cv2.resize(frame, (256, 256)).astype("float32") # resize the frame to 256 by 256 to cut the boundary
+        frame[elev_angle < angle] = 0 #cut the boundary
+        frame = cv2.resize(frame, (224, 224)).astype("float32") # resize the frame to 224 by 224 for prediction
+        preds = model.predict(np.expand_dims(frame, axis=0))[0] # prediction
+        i = np.argmax(preds)
+        confidence = np.max(preds)
+        label = lb.classes_[i]
+        return preds, label, i, confidence
+    except Exception as e:
+        logging.CRITICAL(f'unable to pred_frame, error = {e}')
+        return e
 
-    return preds, label, i, confidence
+    
 
 
 def process_image(item):
@@ -101,4 +106,6 @@ def process_image(item):
     preds, prediction_str, prediction, confidence = pred_frame(value)
     new_row = {'date': ymd_str, 'time': time_str, 'prediction': prediction,
                'prediction_str': prediction_str, 'confidence': confidence}
+    
+    print('one image processed')
     return new_row, directory_path, ymd_str
