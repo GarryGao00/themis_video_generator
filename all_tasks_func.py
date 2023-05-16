@@ -106,5 +106,5 @@ def process_image(item):
     preds, prediction_str, prediction, confidence = pred_frame(value)
     new_row = {'date': ymd_str, 'time': time_str, 'prediction': prediction,
                'prediction_str': prediction_str, 'confidence': confidence}
-    
+        
     return new_row, directory_path, ymd_str

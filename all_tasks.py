@@ -93,7 +93,7 @@ if __name__ == '__main__':
             # try multiprocessing steps
             try: 
                 logging.info(f'starting multiprocessing')
-                mp.set_start_method('spawn')
+                # mp.set_start_method('spawn')
                 # Create a pool of worker processes
                 num_workers = cpu_count()
                 pool = Pool(processes=num_workers)
@@ -102,6 +102,7 @@ if __name__ == '__main__':
                 # Map the process_image function to each item in camera_dict using multiprocessing
                 results = pool.map(process_image, camera_dict.items())
                 logging.info('results generated')
+                del camera_dict
 
                 # Close the pool of worker processes
                 pool.close()
@@ -112,6 +113,8 @@ if __name__ == '__main__':
                 for result in results:
                     new_row, directory_path, ymd_str = result
                     df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+                
+                del results
 
             except Exception as e:
                 logging.CRITICAL(f'Error occurs in multiprocessing as {e}')
