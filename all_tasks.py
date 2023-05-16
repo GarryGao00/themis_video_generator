@@ -8,7 +8,7 @@ from collections import deque
 import numpy as np
 import os
 import pandas as pd
-from multiprocessing import Pool
+from multiprocessing import Pool, cpu_count
 
 # get args from command line
 if len(sys.argv) > 1:
@@ -91,7 +91,8 @@ if __name__ == '__main__':
             try: 
                 logging.info(f'starting multiprocessing')
                 # Create a pool of worker processes
-                pool = Pool(processes=4)
+                num_workers = cpu_count()
+                pool = Pool(processes=num_workers)
 
                 # Map the process_image function to each item in camera_dict using multiprocessing
                 results = pool.map(process_image, camera_dict.items())
