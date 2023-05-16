@@ -16,6 +16,7 @@ if len(sys.argv) > 1:
     args = sys.argv
 
 mp.set_start_method('spawn')
+os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
 if __name__ == '__main__':
 

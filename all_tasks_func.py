@@ -107,5 +107,4 @@ def process_image(item):
     new_row = {'date': ymd_str, 'time': time_str, 'prediction': prediction,
                'prediction_str': prediction_str, 'confidence': confidence}
     
-    print('one image processed')
     return new_row, directory_path, ymd_str
