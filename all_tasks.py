@@ -100,6 +100,8 @@ if __name__ == '__main__':
                 pool.close()
                 pool.join()
 
+                logging.info('results generated')
+
                 # Append the processed rows to the DataFrame
                 for result in results:
                     new_row, directory_path, ymd_str = result
