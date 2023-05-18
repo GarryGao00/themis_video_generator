@@ -105,7 +105,8 @@ if __name__ == '__main__':
 
                 # Close the pool of worker processes
                 pool.close()
-                pool.join()  
+                pool.join()
+                logging.info(f'Pool joined')
 
                 # Append the processed rows to the DataFrame
                 for result in results:
@@ -113,6 +114,7 @@ if __name__ == '__main__':
                     df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
                 
                 del results
+                logging.info(f'dataframe generated')
 
             except Exception as e:
                 logging.CRITICAL(f'Error occurs in multiprocessing as {e}')
@@ -122,6 +124,7 @@ if __name__ == '__main__':
                 if not os.path.exists(directory_path):
                     os.makedirs(directory_path)
                 # needed info: date, time, prediction, prediction_str, confidence
+                logging.info(f'writing dataframe to txt file.')
                 with open(os.path.join(directory_path, ymd_str+'_'+asi_name+"_classifications.txt"), "w") as f:
                     # create the comment section
                     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
