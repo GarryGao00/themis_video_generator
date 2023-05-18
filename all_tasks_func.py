@@ -74,7 +74,6 @@ def decompress_pgm_files_to_dict(folder_path, img_dict):
 # input should be a frame/image, output (predition, label)
 def pred_frame(image):
     try:
-        logging.info('start to pred')
         frame = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR) # convert the frame to RGB color
         frame = cv2.resize(frame, (256, 256)).astype("float32") # resize the frame to 256 by 256 to cut the boundary
         frame[elev_angle < angle] = 0 #cut the boundary
@@ -83,7 +82,6 @@ def pred_frame(image):
         i = np.argmax(preds)
         confidence = np.max(preds)
         label = lb.classes_[i]
-        logging.info('finishing pred')
         return preds, label, i, confidence
     except Exception as e:
         logging.CRITICAL(f'unable to pred_frame, error = {e}')
@@ -93,8 +91,6 @@ def pred_frame(image):
 
 
 def process_image(item):
-    print('starting processing')
-    logging.info('start to process ')
     key, value = item
     dt = datetime.strptime(key[4:], '%Y%m%d%H%M%S')
     year, month, day = str(dt.year), str(dt.month), str(dt.day)
@@ -110,8 +106,5 @@ def process_image(item):
     preds, prediction_str, prediction, confidence = pred_frame(value)
     new_row = {'date': ymd_str, 'time': time_str, 'prediction': prediction,
                'prediction_str': prediction_str, 'confidence': confidence}
-    
-    print('processed one image')
-    logging.info('procced one image')
         
     return new_row, directory_path, ymd_str

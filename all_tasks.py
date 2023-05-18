@@ -8,13 +8,14 @@ from collections import deque
 import numpy as np
 import os
 import pandas as pd
-from multiprocessing import Pool, cpu_count
+from multiprocessing import Pool, cpu_count, set_start_method
 import multiprocessing as mp
 
 # get args from command line
 if len(sys.argv) > 1:
     args = sys.argv
 
+# set GPU devices to empty
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
 if __name__ == '__main__':
@@ -93,7 +94,7 @@ if __name__ == '__main__':
             # try multiprocessing steps
             try: 
                 logging.info(f'starting multiprocessing')
-                # mp.set_start_method('spawn')
+                mp.set_start_method('spawn')
                 # Create a pool of worker processes
                 num_workers = cpu_count()
                 pool = Pool(processes=num_workers)
@@ -101,13 +102,11 @@ if __name__ == '__main__':
 
                 # Map the process_image function to each item in camera_dict using multiprocessing
                 results = pool.map(process_image, camera_dict.items())
-                logging.info('results generated')
                 del camera_dict
 
                 # Close the pool of worker processes
                 pool.close()
-                pool.join()
-                logging.info('pool joined')    
+                pool.join()  
 
                 # Append the processed rows to the DataFrame
                 for result in results:
@@ -121,7 +120,6 @@ if __name__ == '__main__':
                 sys.exit()
 
             try:  
-                logging.info(f'starting generating output')
                 if not os.path.exists(directory_path):
                     os.makedirs(directory_path)
                 # needed info: date, time, prediction, prediction_str, confidence
