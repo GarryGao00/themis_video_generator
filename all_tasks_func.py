@@ -9,17 +9,17 @@ import cv2
 import os
 
 # set the folder path for stream0
-stream0_path = '/home/garry/pa_project/stream0'
+stream0_path = './stream0'
 # stream0_path = 'D:\stream0'
 
 # load trained model
-model_path = '/home/garry/pa_project/themis_video_generator/CNN_model'
+model_path = './CNN_model'
 # model_path = 'F:\pa_sample_models\CNN model'
 model = load_model(
-    os.path.join(model_path, 'model', 'CNN_0119.model'))
+    os.path.join(model_path, 'model', 'CNN_0524.model'))
 
 # load the binarized class labels
-lb_path = os.path.join(model_path, "model/lb_3c.pickle")
+lb_path = os.path.join(model_path, "model/lb_4c.pickle")
 lb = pickle.loads(open(lb_path, "rb").read())
 
 # Predictions queue. The prediction is smoothed by
@@ -55,8 +55,11 @@ def decompress_pgm_files_to_dict(folder_path, img_dict):
                   f for f in file_names if 'full' in f and not f.startswith('.')]
 
     # read the images using themis_imager_readfile - input is the list of absolute paths to compressed images
-    img, meta, problematic_files = themis_imager_readfile.read(file_names)
-    frame_num = img.shape[2]
+    try:
+        img, meta, problematic_files = themis_imager_readfile.read(file_names)
+        frame_num = img.shape[2]
+    except:
+        return
 
     for frame in range(frame_num):
         # '2020-01-04 00:02:06.053611 UTC'
@@ -98,13 +101,16 @@ def process_image(item):
     ymd_str = dt.strftime('%Y%m%d')
     time_str = dt.strftime('%H:%M:%S')
 
-    # process the image using clahe
-    clahe = cv2.createCLAHE(clipLimit=3, tileGridSize=(8, 8))
-    value = cv2.convertScaleAbs(clahe.apply(value), alpha=(255.0/65535.0))
+    try: 
+        # process the image using clahe
+        clahe = cv2.createCLAHE(clipLimit=3, tileGridSize=(8, 8))
+        value = cv2.convertScaleAbs(clahe.apply(value), alpha=(255.0/65535.0))
 
-    # classification name format: YYYY/MM/DD/YYYYMMDD_site_themis##_classifications.txt
-    preds, prediction_str, prediction, confidence = pred_frame(value)
-    new_row = {'date': ymd_str, 'time': time_str, 'prediction': prediction,
-               'prediction_str': prediction_str, 'confidence': confidence}
-        
-    return new_row, directory_path, ymd_str
+        # classification name format: YYYY/MM/DD/YYYYMMDD_site_themis##_classifications.txt
+        preds, prediction_str, prediction, confidence = pred_frame(value)
+        new_row = {'date': ymd_str, 'time': time_str, 'prediction': prediction,
+                'prediction_str': prediction_str, 'confidence': confidence}
+            
+        return new_row, directory_path, ymd_str
+    except:
+        return 
