@@ -75,7 +75,7 @@ if __name__ == '__main__':
             for hour in hours:
                 decompress_pgm_files_to_dict(hour, camera_dict)
 
-            logging.info(f'asi_name = {asi_name}, date = {date_folder_path} decompressed')
+            logging.info(f'asi_name = {asi_name}, date = {date_folder_path} decompressed, time = {datetime.now().strftime("%H:%M:%S")}')
 
             try:
                 # init a dataframe to store information
@@ -132,6 +132,6 @@ if __name__ == '__main__':
                     f.write(comment)
                     df.to_csv(f, sep='\t', index=False)
 
-                logging.info(f'date_folder_path={date_folder_path}, asi={asi_name} results generated')
+                logging.info(f'date_folder_path={date_folder_path}, asi={asi_name} results generated, time = {datetime.now().strftime("%H:%M:%S")}')
             except Exception as e:
                 logging.CRITICAL(f'Error occurs in outputing results as {e}')
