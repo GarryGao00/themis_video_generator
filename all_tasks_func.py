@@ -109,9 +109,7 @@ def process_image(item):
         # classification name format: YYYY/MM/DD/YYYYMMDD_site_themis##_classifications.txt
         preds, prediction_str, prediction, confidence = pred_frame(value)
         new_row = {'date': ymd_str, 'time': time_str, 'prediction': prediction,
-                'prediction_str': prediction_str, 'confidence': confidence}
-        del key, value, item            
+                'prediction_str': prediction_str, 'confidence': confidence}        
         return new_row, directory_path, ymd_str
     except:
-        del key, value, item
         return 

@@ -138,3 +138,4 @@ dmypy.json
 classification-03022023.xlsx
 stream0_download_final.py
 nohup.out
+.DS_Store
