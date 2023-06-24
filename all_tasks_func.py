@@ -81,7 +81,7 @@ def pred_frame(image):
         frame = cv2.resize(frame, (256, 256)).astype("float32") # resize the frame to 256 by 256 to cut the boundary
         frame[elev_angle < angle] = 0 #cut the boundary
         frame = cv2.resize(frame, (224, 224)).astype("float32") # resize the frame to 224 by 224 for prediction
-        preds = model.predict(np.expand_dims(frame, axis=0))[0] # prediction
+        preds = model(np.expand_dims(frame, axis=0))[0] # prediction
         i = np.argmax(preds)
         confidence = np.max(preds)
         label = lb.classes_[i]

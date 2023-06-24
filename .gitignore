@@ -5,6 +5,10 @@ videos/*
 h5s/*
 stream0_download.py
 [0-9][0-9][0-9][0-9]/
+stream0_*/
+all_tasks_testing*.py
+memlog
+all_tasks_func_testing.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
