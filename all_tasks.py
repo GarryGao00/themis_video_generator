@@ -46,7 +46,6 @@ if __name__ == '__main__':
             start_date, end_date, folder_path=stream0_path)
         logging.info(
             f'getting paths from {subfolder_paths[0]} to {subfolder_paths[-1]}')
-
     except Exception as e:
         print(f'Start or end date not valid, Exception: {e}')
         sys.exit()
@@ -78,7 +77,7 @@ if __name__ == '__main__':
             asi_folder_path = os.path.join(date_folder_path, asi_name)
             hours = []
 
-            for hour_name in os.listdir(asi_folder_path):  # /ut09
+            for hour_name in os.listdir(asi_folder_path):  # /ut09 get hour folders
                 # check if it is a sub folder
                 hour_folder_path = os.path.join(asi_folder_path, hour_name)
                 if os.path.isdir(hour_folder_path):
@@ -121,7 +120,7 @@ if __name__ == '__main__':
                 prediction_nums = list(map(np.argmax, preds))
                 confidences = list(map(np.max, preds))
                 prediction_strs = [lb.classes_[item] for item in prediction_nums] 
-                new_row = pd.DataFrame({'date': ymd_strs, 'time': time_strs, 'prediction': prediction_nums, 'prediction_str': prediction_strs, 'confidence': confidences}) 
+                new_rows = pd.DataFrame({'date': ymd_strs, 'time': time_strs, 'prediction': prediction_nums, 'prediction_str': prediction_strs, 'confidence': confidences}) 
                 # Close the pool of worker processes
                 pool.close()
                 pool.join()
@@ -129,7 +128,7 @@ if __name__ == '__main__':
                 # Append the processed rows to the DataFrame
                 for frame in frames:
                     frame = frame
-                    df = pd.concat([df, new_row], ignore_index=True)
+                    df = pd.concat([df, new_rows], ignore_index=True)
                 
                 #del results
                 logging.info(f'dataframe generated')
