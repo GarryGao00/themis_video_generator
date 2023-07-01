@@ -114,17 +114,22 @@ if __name__ == '__main__':
                 logging.info(f'pool generated, num_workers = {num_workers}')
 
                 # Map the process_image function to each item in camera_dict using multiprocessing
-                results = pool.map(process_image, camera_dict.items())
+                results = pool.map(process_image_clahe, camera_dict.items())
+                frames, directory_paths, ymd_strs, time_strs = results
                 #del camera_dict
-
+                preds = model(frames)
+                prediction_nums = list(map(np.argmax, preds))
+                confidences = list(map(np.max, preds))
+                prediction_strs = [lb.classes_[item] for item in prediction_nums] 
+                new_row = pd.DataFrame({'date': ymd_strs, 'time': time_strs, 'prediction': prediction_nums, 'prediction_str': prediction_strs, 'confidence': confidences}) 
                 # Close the pool of worker processes
                 pool.close()
                 pool.join()
                 logging.info(f'Pool joined')
                 # Append the processed rows to the DataFrame
-                for result in results:
-                    new_row, directory_path, ymd_str = result
-                    df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+                for frame in frames:
+                    frame = frame
+                    df = pd.concat([df, new_row], ignore_index=True)
                 
                 #del results
                 logging.info(f'dataframe generated')
@@ -137,6 +142,8 @@ if __name__ == '__main__':
                 continue  # if exception, go to next asi camera
 
             try:  
+                directory_path = directory_path[-1]
+                ymd_str = ymd_strs[-1]
                 if not os.path.exists(directory_path):
                     os.makedirs(directory_path)
                 # needed info: date, time, prediction, prediction_str, confidence

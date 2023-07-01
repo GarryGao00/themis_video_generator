@@ -8,7 +8,7 @@ stream0_download.py
 stream0_*/
 all_tasks_testing*.py
 memlog
-all_tasks_func_testing.py
+*testing.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

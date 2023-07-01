@@ -74,26 +74,8 @@ def decompress_pgm_files_to_dict(folder_path, img_dict):
 
     return
 
-# input should be a frame/image, output (predition, label)
-def pred_frame(image):
-    try:
-        frame = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR) # convert the frame to RGB color
-        frame = cv2.resize(frame, (256, 256)).astype("float32") # resize the frame to 256 by 256 to cut the boundary
-        frame[elev_angle < angle] = 0 #cut the boundary
-        frame = cv2.resize(frame, (224, 224)).astype("float32") # resize the frame to 224 by 224 for prediction
-        preds = model(np.expand_dims(frame, axis=0))[0] # prediction
-        i = np.argmax(preds)
-        confidence = np.max(preds)
-        label = lb.classes_[i]
-        return preds, label, i, confidence
-    except Exception as e:
-        logging.CRITICAL(f'unable to pred_frame, error = {e}')
-        return e
 
-    
-
-
-def process_image(item):
+def process_image_clahe(item):
     key, value = item
     dt = datetime.strptime(key[4:], '%Y%m%d%H%M%S')
     year, month, day = str(dt.year), str(dt.month), str(dt.day)
@@ -104,12 +86,11 @@ def process_image(item):
     try: 
         # process the image using clahe
         clahe = cv2.createCLAHE(clipLimit=3, tileGridSize=(8, 8))
-        value = cv2.convertScaleAbs(clahe.apply(value), alpha=(255.0/65535.0))
-
-        # classification name format: YYYY/MM/DD/YYYYMMDD_site_themis##_classifications.txt
-        preds, prediction_str, prediction, confidence = pred_frame(value)
-        new_row = {'date': ymd_str, 'time': time_str, 'prediction': prediction,
-                'prediction_str': prediction_str, 'confidence': confidence}        
-        return new_row, directory_path, ymd_str
+        image = cv2.convertScaleAbs(clahe.apply(value), alpha=(255.0/65535.0))
+        frame = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR) # convert the frame to RGB color
+        frame = cv2.resize(frame, (256, 256)).astype("float32") # resize the frame to 256 by 256 to cut the boundary
+        frame[elev_angle < angle] = 0 #cut the boundary
+        frame = cv2.resize(frame, (224, 224)).astype("float32") # resize the frame to 224 by 224 for prediction
+        return frame, directory_path, ymd_str, time_str
     except:
         return 
