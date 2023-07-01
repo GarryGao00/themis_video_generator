@@ -126,9 +126,7 @@ if __name__ == '__main__':
                 pool.join()
                 logging.info(f'Pool joined')
                 # Append the processed rows to the DataFrame
-                for frame in frames:
-                    frame = frame
-                    df = pd.concat([df, new_rows], ignore_index=True)
+                df = pd.concat([df, new_rows], ignore_index=True)
                 
                 #del results
                 logging.info(f'dataframe generated')
@@ -141,7 +139,7 @@ if __name__ == '__main__':
                 continue  # if exception, go to next asi camera
 
             try:  
-                directory_path = directory_path[-1]
+                directory_path = directory_paths[-1] # get the last directory path and ymd str
                 ymd_str = ymd_strs[-1]
                 if not os.path.exists(directory_path):
                     os.makedirs(directory_path)
