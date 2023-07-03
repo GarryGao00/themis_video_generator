@@ -68,7 +68,7 @@ if __name__ == '__main__':
             f'Processing date_folder_path = {date_folder_path}, {datetime.now().strftime("%H:%M:%S")}')
 
         # Iterate over the child folders (each camera) in the outer folder
-        for asi_name in os.listdir(date_folder_path):  # /mcgr_themis11
+        for asi_name in os.listdir(date_folder_path)[0:1]:  # /mcgr_themis11
 
             logging.info(
                 f'Processing asi = {asi_name}')
@@ -91,7 +91,7 @@ if __name__ == '__main__':
                 # init a dataframe to store information
             df = pd.DataFrame(
                 columns=['date', 'time', 'prediction', 'prediction_str', 'confidence'])
-            df.to_csv(txt_path, mode = 'a', index=False)
+            #df.to_csv(txt_path, mode = 'a', index=False)
 
             # get the path of each hour
             hours = []
@@ -109,7 +109,7 @@ if __name__ == '__main__':
                 continue
 
             # for each hour, decompress, predict, and write into txt
-            for hour in hours:
+            for hour in hours[0:1]:
                 # camera_dict example k-v pair: {'atha20200104000206':img[:,:,:]}
                 camera_dict = {}
                 decompress_pgm_files_to_dict(hour, camera_dict)
@@ -133,25 +133,37 @@ if __name__ == '__main__':
 
                     # Map the process_image function to each item in camera_dict using multiprocessing
                     results = pool.map(process_image_clahe, camera_dict.items())
-                    if not results:
-                        frames, directory_paths, ymd_strs, time_strs = results
-                    else:
-                        # if no results, go to next hour
-                        continue
-                    preds = model(frames)
-                    prediction_nums = list(map(np.argmax, preds))
-                    confidences = list(map(np.max, preds))
-                    prediction_strs = [lb.classes_[item] for item in prediction_nums] 
-                    new_rows = pd.DataFrame({'date': ymd_strs, 'time': time_strs, 'prediction': prediction_nums, 'prediction_str': prediction_strs, 'confidence': confidences}) 
-                    # Close the pool of worker processes
+                    
                     pool.close()
                     pool.join()
-                    logging.info(f'Pool joined')
-                    # Append the processed rows to the DataFrame
-                    df.to_csv(txt_path, mode='a', index=False, header=False)
+                    logging.info('Pool joined.')
+                    #if not results:
                     
-                    #del results
-                    logging.info(f'dataframe generated')
+                    # Assign output to empty lists
+                    frames, directory_paths, ymd_strs, time_strs = [], [], [], []
+                    
+                    # Loop through each frame and append to list
+                    for result in results:
+                        frame, directory_path, ymd_str, time_str = result
+                        frames.append(frame)
+                        ymd_strs.append(ymd_str)
+                        time_strs.append(time_str)
+                        
+                    logging.info(f'Frames shape: {np.array(frames).shape}.')
+                        
+                    #else:
+                        # if no results, go to next hour
+                    #    continue
+                    logging.info('Images processed. Starting model predictions.')
+                    preds = model.predict(np.array(frames), batch_size=100, use_multiprocessing=True)
+                    prediction_nums = list(map(np.argmax, preds))
+                    confidences = list(map(np.max, preds))
+                    prediction_strs = [lb.classes_[item] for item in prediction_nums]
+                    new_rows = pd.DataFrame({'date': ymd_strs, 'time': time_strs, 'prediction': prediction_nums, 'prediction_str': prediction_strs, 'confidence': confidences}) 
+                    # Close the pool of worker processes
+                    logging.info(f'Model prediction finished.')
+                    # Append the processed rows to the DataFrame
+                    df = pd.concat([df, new_rows], ignore_index=True)
         
 
                 except Exception as e:
@@ -160,6 +172,12 @@ if __name__ == '__main__':
                         f'DATE SKIPPED: asi_name = {asi_name}, date = {date_folder_path}')
                     continue  # if exception, go to next asi camera
 
+            # Write dataframe to csv file
+            df.to_csv(txt_path, mode='a', index=False, header=False)
+                    
+            #del results
+            logging.info(f'Predictions written to file and available at {txt_path}.')
+        
         
             logging.info(f'date_folder_path={date_folder_path}, asi={asi_name} results generated, time = {datetime.now().strftime("%H:%M:%S")}')
 
