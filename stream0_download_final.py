@@ -70,17 +70,4 @@ if __name__ == '__main__':
         except Exception as e:
             logging.info(f'error processing {mydate} {station}, error={e}')
 
-    # for d in ds:
-    #     mydate = d
-    #     date_string_url = mydate.strftime('%Y/%m/%d/')
-    #     dir_url = os.path.join(themis_url, date_string_url)
-    #     full_path = os.path.join(folder_path, date_string_url)
-    #     if not os.path.exists(full_path):
-    #         os.makedirs(full_path)
-    #     try:
-    #         subprocess.run(['rsync', '-vzrt', '--size-only', '--ignore-existing', 'rsync://' + dir_url,
-    #                         full_path], stdout=subprocess.DEVNULL)
-    #         logging.info(
-    #             f'Successfully downloaded at {mydate} at {folder_path}')
-    #     except Exception as e:
-    #         logging.info(f'error processing {mydate} , error={e}')
+        break
