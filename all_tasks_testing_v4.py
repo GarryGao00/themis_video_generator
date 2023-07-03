@@ -1,5 +1,5 @@
 from video_generator import *
-from all_tasks_func import *
+from all_tasks_func_testing_v2 import *
 from datetime import datetime, timedelta
 import sys
 import logging
@@ -17,6 +17,7 @@ if len(sys.argv) > 1:
 
 # set GPU devices to empty
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
+
 
 if __name__ == '__main__':
 
@@ -45,7 +46,6 @@ if __name__ == '__main__':
             start_date, end_date, folder_path=stream0_path)
         logging.info(
             f'getting paths from {subfolder_paths[0]} to {subfolder_paths[-1]}')
-
     except Exception as e:
         print(f'Start or end date not valid, Exception: {e}')
         sys.exit()
@@ -68,8 +68,7 @@ if __name__ == '__main__':
             f'Processing date_folder_path = {date_folder_path}, {datetime.now().strftime("%H:%M:%S")}')
 
         # Iterate over the child folders (each camera) in the outer folder
-        for asi_name in os.listdir(date_folder_path)[0:1]:  # /mcgr_themis11
-
+        for asi_name in os.listdir(date_folder_path):  # /mcgr_themis11
             # camera_dict example k-v pair: {'atha20200104000206':img[:,:,:]}
             camera_dict = {}
 
@@ -77,28 +76,33 @@ if __name__ == '__main__':
                 f'Processing asi = {asi_name}')
             asi_folder_path = os.path.join(date_folder_path, asi_name)
             hours = []
+            frames = []
+            keys = []
 
-            for hour_name in os.listdir(asi_folder_path):  # /ut09
+            for hour_name in os.listdir(asi_folder_path):  # /ut09 get hour folders
                 # check if it is a sub folder
                 hour_folder_path = os.path.join(asi_folder_path, hour_name)
                 if os.path.isdir(hour_folder_path):
                     hours.append(hour_folder_path)
 
             for hour in hours[0:1]:
-                decompress_pgm_files_to_dict(hour, camera_dict)
-
+                keys_tmp, frames_tmp = decompress_pgm_files_to_dict(hour)
+                keys.extend(keys_tmp)
+                frames.extend(frames_tmp)
+                print(np.array(frames).shape)
+            frames = np.array(frames)
+            frames_processed = np.zeros((frames.shape[0], 224, 224, 3))
             logging.info(f'asi_name = {asi_name}, date = {date_folder_path} decompressed')
-
             try:
                 # init a dataframe to store information
                 df = pd.DataFrame(
                     columns=['date', 'time', 'prediction', 'prediction_str', 'confidence'])
                 
-                if not camera_dict:
-                    logging.info(
-                        f'DATE SKIPPED: camera_dict empty, asi_name = {asi_name}, date = {date_folder_path}')
-                    del camera_dict
-                    continue
+#                if not camera_dict:
+#                    logging.info(
+#                        f'DATE SKIPPED: camera_dict empty, asi_name = {asi_name}, date = {date_folder_path}')
+#                    #del camera_dict
+#                    continue
 
 
             except Exception as e:
@@ -108,28 +112,46 @@ if __name__ == '__main__':
 
             # try multiprocessing steps
             try: 
-                logging.info(f'starting multiprocessing')
+                #logging.info(f'starting multiprocessing')
                 # Create a pool of worker processes
-                num_workers = num_workers
-                pool = get_context("spawn").Pool(processes=num_workers)
-                logging.info(f'pool generated, num_workers = {num_workers}')
-
+                #num_workers = num_workers
+                #pool = get_context("spawn").Pool(processes=num_workers)
+                #logging.info(f'pool generated, num_workers = {num_workers}')
+                logging.info(f'Starting processing images.')
+                directory_paths, ymd_strs, time_strs = [], [], []
+                for n in range(0, len(keys)):
+                    frames_processed[n, :, :] = process_image_clahe(frames[n, :, :])
+                    #directory_paths.extend(dir_paths_tmp)
+                    #ymd_strs.extend(ymd_strs_tmp)
+                    #time_strs.extend(time_strs_tmp)
+                    if n%1000 == 0:
+                        print(np.array(frames).shape)
+                        logging.info(f'Finished processing {n} images.')
                 # Map the process_image function to each item in camera_dict using multiprocessing
-                results = pool.map(process_image, camera_dict.items())
-                del camera_dict
-
+                #results = pool.map(process_image_clahe, camera_dict.items())
+                #pool.close()
+                #pool.join()
+                #logging.info('Pool joined')
+                del frames
+                logging.info('Finished processing images, starting model predictions.')
+                #frames, directory_paths, ymd_strs, time_strs = results
+                #del camera_dict
+                preds = model(frames_processed)
+                logging.info('Finished predictions')
+                prediction_nums = list(map(np.argmax, preds))
+                confidences = list(map(np.max, preds))
+                prediction_strs = [lb.classes_[item] for item in prediction_nums] 
+                new_rows = pd.DataFrame({'date': ymd_strs, 'time': time_strs, 'prediction': prediction_nums, 'prediction_str': prediction_strs, 'confidence': confidences}) 
                 # Close the pool of worker processes
-                pool.close()
-                pool.join()
-                logging.info(f'Pool joined')
-
+                # pool.close()
+                # pool.join()
+                #logging.info(f'Pool joined')
                 # Append the processed rows to the DataFrame
-                for result in results:
-                    new_row, directory_path, ymd_str = result
-                    df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+                df = pd.concat([df, new_rows], ignore_index=True)
                 
-                del results
+                #del results
                 logging.info(f'dataframe generated')
+        
 
             except Exception as e:
                 logging.CRITICAL(f'Error occurs in multiprocessing as {e}')
@@ -138,6 +160,8 @@ if __name__ == '__main__':
                 continue  # if exception, go to next asi camera
 
             try:  
+                directory_path = directory_paths[-1] # get the last directory path and ymd str
+                ymd_str = ymd_strs[-1]
                 if not os.path.exists(directory_path):
                     os.makedirs(directory_path)
                 # needed info: date, time, prediction, prediction_str, confidence
@@ -148,8 +172,7 @@ if __name__ == '__main__':
                     comment = f"# File created on {now}\n# This file contains the predictions generated by the model.\n\n"
                     f.write(comment)
                     df.to_csv(f, sep='\t', index=False)
-                    
-                del df
+                #del df
                 logging.info(f'date_folder_path={date_folder_path}, asi={asi_name} results generated, time = {datetime.now().strftime("%H:%M:%S")}')
             except Exception as e:
                 logging.CRITICAL(

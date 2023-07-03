@@ -1,5 +1,6 @@
 from video_generator import *
 from datetime import datetime, timedelta
+from dateutil import parser
 import logging
 from tensorflow.keras.models import load_model
 from collections import deque
@@ -45,8 +46,9 @@ def get_subfolders_in_range(start_date, end_date, folder_path=stream0_path):
     return subfolder_paths
 
 # helper function that decompress one folder
-def decompress_pgm_files_to_dict(folder_path, img_dict):
+def decompress_pgm_files_to_dict(folder_path):
     logging.info('decompressing hour = '+folder_path[-4:]+'  '+folder_path)
+
     # folder_path: str, should be ut** folder path
 
     # get all compressed images absolute path in the folder, exclude hidden files and different shape files
@@ -56,23 +58,35 @@ def decompress_pgm_files_to_dict(folder_path, img_dict):
 
     # read the images using themis_imager_readfile - input is the list of absolute paths to compressed images
     try:
+       # file = h5py.File(folder_path, 'r')
+       # all_times = [datetime.fromtimestamp(d) for d in file['timestamps']]
+       # all_images = file['images']
+       # frame_num = len(all_times)
+
         img, meta, problematic_files = themis_imager_readfile.read(file_names)
-        frame_num = img.shape[2]
+#        frame_num = img.shape[2]
+#        logging.info(f'Frame number: {frame_num}')
     except:
+        logging.warning(f'No files in {folder_path}')
         return
 
-    for frame in range(frame_num):
-        # '2020-01-04 00:02:06.053611 UTC'
-        strtime = meta[frame]['Image request start']
-        # 'datetime.datetime(2020, 1, 4, 0, 2, 6, 53611)'
-        dt = datetime.strptime(strtime, "%Y-%m-%d %H:%M:%S.%f %Z")
-        # '20200104000206'
-        dt = dt.strftime('%Y%m%d%H%M%S')
-        key = meta[frame]['Site unique ID']+dt
-        value = img[:, :, frame]
-        img_dict[key] = value
+#    for frame in range(frame_num):
+#        #img_dict[all_times[frame]] = all_images[:, :, frame]
+#        # '2020-01-04 00:02:06.053611 UTC'
+#        strtime = meta[frame]['Image request start']
+#        # 'datetime.datetime(2020, 1, 4, 0, 2, 6, 53611)'
+#        dt = datetime.strptime(strtime, "%Y-%m-%d %H:%M:%S.%f %Z")
+#        # '20200104000206'
+#        dt = dt.strftime('%Y%m%d%H%M%S')
+#        key = meta[frame]['Site unique ID']+dt
+#        value = img[:, :, frame]
 
-    return
+#        if frame_num < 1:
+#            return 
+
+#        img_dict[key] = value
+
+    return img, meta
 
 # input should be a frame/image, output (predition, label)
 def pred_frame(image):
