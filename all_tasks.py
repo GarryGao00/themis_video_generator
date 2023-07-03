@@ -79,7 +79,7 @@ if __name__ == '__main__':
             ymd_str = (datetime.strptime(directory_path, "%Y/%m/%d")).strftime('%Y%m%d')
             if not os.path.exists(directory_path):
                 os.makedirs(directory_path)
-            # needed info: date, time, prediction, prediction_str, confidence
+            # needed info in txt file: date, time, prediction, prediction_str, confidence
             logging.info(f'writing dataframe to txt file.')
             txt_path = os.path.join(
                 directory_path, ymd_str+'_'+asi_name+"_classifications.txt")
@@ -93,6 +93,7 @@ if __name__ == '__main__':
                 columns=['date', 'time', 'prediction', 'prediction_str', 'confidence'])
             df.to_csv(txt_path, mode = 'a', index=False)
 
+            # get the path of each hour
             hours = []
             for hour_name in os.listdir(asi_folder_path):  # /ut09 get hour folders
                 # check if it is a sub folder
@@ -100,29 +101,27 @@ if __name__ == '__main__':
                 if os.path.isdir(hour_folder_path):
                     hours.append(hour_folder_path)
 
-            # Hour process starting from here
+            ### ! Hourly process starts from here
+            # if empty hours list, continue
             if not hours:
                 logging.info(
                     f'DATE SKIPPED: camera_dict empty, asi_name = {asi_name}, date = {date_folder_path}')
                 continue
+
+            # for each hour, decompress, predict, and write into txt
             for hour in hours:
                 # camera_dict example k-v pair: {'atha20200104000206':img[:,:,:]}
                 camera_dict = {}
                 decompress_pgm_files_to_dict(hour, camera_dict)
-
                 try:
-                    
                     if not camera_dict:
                         logging.info(
                             f'DATE SKIPPED: camera_dict empty, asi_name = {asi_name}, date = {date_folder_path}')
-                        #del camera_dict
                         continue
-
-
                 except Exception as e:
                     logging.CRITICAL(f'Error occurs in making dataframe as {e}')
-                    logging.CRITICAL(f'DATE SKIPPED: asi_name = {asi_name}, date = {date_folder_path}')
-                    continue # if exception, go to next asi camera
+                    logging.CRITICAL(f'HOUR SKIPPED: asi_name = {asi_name}, date = {date_folder_path}, hour = {hour}')
+                    continue # if exception, go to next hour
 
                 # try multiprocessing steps
                 try: 
@@ -135,7 +134,6 @@ if __name__ == '__main__':
                     # Map the process_image function to each item in camera_dict using multiprocessing
                     results = pool.map(process_image_clahe, camera_dict.items())
                     frames, directory_paths, ymd_strs, time_strs = results
-                    #del camera_dict
                     preds = model(frames)
                     prediction_nums = list(map(np.argmax, preds))
                     confidences = list(map(np.max, preds))
