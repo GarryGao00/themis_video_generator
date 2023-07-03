@@ -1,4 +1,4 @@
-from video_generator import *
+#from video_generator import *
 from datetime import datetime, timedelta
 import logging
 from tensorflow.keras.models import load_model
@@ -7,6 +7,7 @@ import numpy as np
 import pickle
 import cv2
 import os
+import themis_imager_readfile
 
 # set the folder path for stream0
 stream0_path = './stream0'
@@ -45,7 +46,7 @@ def get_subfolders_in_range(start_date, end_date, folder_path=stream0_path):
     return subfolder_paths
 
 # helper function that decompress one folder
-def decompress_pgm_files_to_dict(folder_path, img_dict):
+def decompress_pgm_files_to_dict(folder_path, img_dict, num_workers=1):
     logging.info('decompressing hour = '+folder_path[-4:]+'  '+folder_path)
     # folder_path: str, should be ut** folder path
 
@@ -56,9 +57,10 @@ def decompress_pgm_files_to_dict(folder_path, img_dict):
 
     # read the images using themis_imager_readfile - input is the list of absolute paths to compressed images
     try:
-        img, meta, problematic_files = themis_imager_readfile.read(file_names)
+        img, meta, problematic_files = themis_imager_readfile.read(file_names, workers=num_workers)
         frame_num = img.shape[2]
-    except:
+    except Exception as e:
+        logging.critical(f'Issue reading in compressed images: {e}.')
         return
 
     for frame in range(frame_num):
@@ -92,5 +94,6 @@ def process_image_clahe(item):
         frame[elev_angle < angle] = 0 #cut the boundary
         frame = cv2.resize(frame, (224, 224)).astype("float32") # resize the frame to 224 by 224 for prediction
         return frame, directory_path, ymd_str, time_str
-    except:
+    except Exception as e:
+        logging.critical(f'Issue processing image: {e}.')
         return
