@@ -133,7 +133,11 @@ if __name__ == '__main__':
 
                     # Map the process_image function to each item in camera_dict using multiprocessing
                     results = pool.map(process_image_clahe, camera_dict.items())
-                    frames, directory_paths, ymd_strs, time_strs = results
+                    if not results:
+                        frames, directory_paths, ymd_strs, time_strs = results
+                    else:
+                        # if no results, go to next hour
+                        continue
                     preds = model(frames)
                     prediction_nums = list(map(np.argmax, preds))
                     confidences = list(map(np.max, preds))

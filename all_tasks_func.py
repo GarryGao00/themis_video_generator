@@ -93,4 +93,4 @@ def process_image_clahe(item):
         frame = cv2.resize(frame, (224, 224)).astype("float32") # resize the frame to 224 by 224 for prediction
         return frame, directory_path, ymd_str, time_str
     except:
-        return 
+        return
