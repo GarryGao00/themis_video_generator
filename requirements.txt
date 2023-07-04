@@ -1,16 +1,16 @@
 absl-py==1.4.0
 astunparse==1.6.3
-boltons @ file:///croot/boltons_1677628692245/work
+boltons==23.0.0
 brotlipy==0.7.0
 cachetools==5.3.0
-certifi @ file:///croot/certifi_1671487769961/work/certifi
-cffi @ file:///croot/cffi_1670423208954/work
-charset-normalizer @ file:///tmp/build/80754af9/charset-normalizer_1630003229654/work
+certifi==2022.12.7
+cffi==1.15.1
+charset-normalizer==2.0.4
 conda==23.3.1
-conda-content-trust @ file:///tmp/abs_5952f1c8-355c-4855-ad2e-538535021ba5h26t22e5/croots/recipe/conda-content-trust_1658126371814/work
-conda-package-handling @ file:///croot/conda-package-handling_1672865015732/work
-conda_package_streaming @ file:///croot/conda-package-streaming_1670508151586/work
-cryptography @ file:///croot/cryptography_1677533068310/work
+conda-content-trust==0.1.3
+conda-package-handling==2.0.2
+conda_package_streaming==0.7.0
+cryptography==39.0.1
 DateTime==5.1
 et-xmlfile==1.1.0
 flatbuffers==23.5.9
@@ -20,10 +20,10 @@ google-auth-oauthlib==1.0.0
 google-pasta==0.2.0
 grpcio==1.54.0
 h5py==3.8.0
-idna @ file:///croot/idna_1666125576474/work
+idna==3.4
 jax==0.4.9
 joblib==1.2.0
-jsonpatch @ file:///tmp/build/80754af9/jsonpatch_1615747632069/work
+jsonpatch==1.32
 jsonpointer==2.1
 keras==2.12.0
 libclang==16.0.0
@@ -35,27 +35,29 @@ oauthlib==3.2.2
 opencv-python==4.7.0.72
 openpyxl==3.1.2
 opt-einsum==3.3.0
-packaging @ file:///croot/packaging_1678965309396/work
+packaging==23.0
 pandas==2.0.1
-pluggy @ file:///tmp/build/80754af9/pluggy_1648024709248/work
+pip==23.0.1
+pluggy==1.0.0
 protobuf==4.23.0
 psutil==5.9.5
 pyasn1==0.5.0
 pyasn1-modules==0.3.0
-pycosat @ file:///croot/pycosat_1666805502580/work
-pycparser @ file:///tmp/build/80754af9/pycparser_1636541352034/work
-pyOpenSSL @ file:///croot/pyopenssl_1677607685877/work
-PySocks @ file:///home/builder/ci_310/pysocks_1640793678128/work
+pycosat==0.6.4
+pycparser==2.21
+pyOpenSSL==23.0.0
+PySocks==1.7.1
 python-dateutil==2.8.2
 pytz==2023.3
-requests @ file:///croot/requests_1678709721434/work
+requests==2.28.1
 requests-oauthlib==1.3.1
 rsa==4.9
-ruamel.yaml @ file:///croot/ruamel.yaml_1666304550667/work
-ruamel.yaml.clib @ file:///croot/ruamel.yaml.clib_1666302247304/work
+ruamel.yaml==0.17.21
+ruamel.yaml.clib==0.2.6
 scikit-learn==1.2.2
 scipy==1.10.1
-six @ file:///tmp/build/80754af9/six_1644875935023/work
+setuptools==65.6.3
+six==1.16.0
 tensorboard==2.12.3
 tensorboard-data-server==0.7.0
 tensorflow==2.12.0
@@ -64,12 +66,13 @@ tensorflow-io-gcs-filesystem==0.32.0
 termcolor==2.3.0
 themis-imager-readfile==1.2.2
 threadpoolctl==3.1.0
-toolz @ file:///croot/toolz_1667464077321/work
-tqdm @ file:///croot/tqdm_1679561862951/work
+toolz==0.12.0
+tqdm==4.65.0
 typing_extensions==4.5.0
 tzdata==2023.3
-urllib3 @ file:///croot/urllib3_1680254681959/work
+urllib3==1.26.15
 Werkzeug==2.3.4
+wheel==0.38.4
 wrapt==1.14.1
 zope.interface==6.0
-zstandard @ file:///croot/zstandard_1677013143055/work
+zstandard==0.19.0
